@@ -1,10 +1,13 @@
-""" SwitchCondition class is a part of pymmrouting module """
+"""
+SwitchCondition class is a part of pymmrouting module
+"""
 
 
 class SwitchCondition(object):
 
-    """ Store the conditions of a switching action between two
-        transportation modes
+    """
+    Store the conditions of a switching action between two
+    transportation modes
     """
 
     def __init__(self):
