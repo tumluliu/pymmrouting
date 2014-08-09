@@ -1,0 +1,9 @@
+{ 
+    'available_public_modes': ['underground'],
+    'can_use_taxi': False,
+    'has_bicycle': False,
+    'has_motorcycle': False,
+    'has_private_car': False,
+    'need_parking': False,
+    'objective': 'fastest'
+}
