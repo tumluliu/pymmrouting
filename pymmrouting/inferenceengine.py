@@ -4,7 +4,8 @@ Infer feasible routing plans according to user preferences
 
 
 import json
-
+from ctypes import *
+from pymmrouting.datamodel import Vertex, VERTEX_VALIDATION_CHECKER
 
 class RoutingPlan(object):
 
@@ -19,6 +20,7 @@ class RoutingPlan(object):
         self.switch_type_list = []
         self.switch_condition_list = []
         self.switch_constraint_list = []
+        #self.target_constraint = VERTEX_VALIDATION_CHECKER(lambda v: 0)
         self.target_constraint = None
         self.public_transit_set = []
         self.has_public_transit = False
@@ -26,7 +28,6 @@ class RoutingPlan(object):
         self.description = ''
         self.source = 0
         self.target = 0
-
 
 class RoutingPlanInferer(object):
 
@@ -56,6 +57,7 @@ class RoutingPlanInferer(object):
         'bus_station':         2007,
         'kiss_and_ride':       2008
     }
+
 
     def __init__(self):
         self.options = {}
@@ -96,6 +98,11 @@ class RoutingPlanInferer(object):
                     routing_plan.is_multimodal = False
                     routing_plan.cost_factor = cost_factor
                     routing_plan.description = 'Driving a car'
+                    if 'driving_distance_limit' in self.options:
+                        routing_plan.target_constraint = VERTEX_VALIDATION_CHECKER(
+                            lambda v: 0 if v[0].distance <= float(
+                                self.options['driving_distance_limit']) *
+                            1000.0 else -1)
                     routing_plan_list.append(routing_plan)
                     # 2nd: foot only
                     routing_plan = RoutingPlan()
@@ -114,7 +121,14 @@ class RoutingPlanInferer(object):
                         "type_id=" +
                         str(type_id) +
                         " AND is_available=true")
-                    routing_plan.switch_constraint_list.append(None)
+                    if 'driving_distance_limit' in self.options:
+                        routing_plan.switch_constraint_list.append(
+                            VERTEX_VALIDATION_CHECKER(
+                                lambda v: 0 if v[0].distance <= float(
+                                    self.options['driving_distance_limit']) *
+                                1000.0 else -1))
+                    else:
+                        routing_plan.switch_constraint_list.append(None)
                     routing_plan.is_multimodal = True
                     routing_plan.cost_factor = cost_factor
                     routing_plan.description = 'By car first, then walking without parking'
@@ -143,7 +157,14 @@ class RoutingPlanInferer(object):
                         "type_id=" +
                         str(type_id) +
                         " AND is_available=true")
-                    routing_plan.switch_constraint_list.append(None)
+                    if 'driving_distance_limit' in self.options:
+                        routing_plan.switch_constraint_list.append(
+                            VERTEX_VALIDATION_CHECKER(
+                                lambda v: 0 if v[0].distance <= float(
+                                    self.options['driving_distance_limit']) *
+                                1000.0 / 2 else -1))
+                    else:
+                        routing_plan.switch_constraint_list.append(None)
                     routing_plan.is_multimodal = True
                     routing_plan.cost_factor = cost_factor
                     routing_plan.description = 'Driving, parking and walking'
@@ -206,6 +227,11 @@ class RoutingPlanInferer(object):
                 routing_plan.is_multimodal = False
                 routing_plan.cost_factor = cost_factor
                 routing_plan.description = 'Driving a car'
+                if 'driving_distance_limit' in self.options:
+                    routing_plan.target_constraint = VERTEX_VALIDATION_CHECKER(
+                        lambda v: 0 if v[0].distance <= float(
+                            self.options['driving_distance_limit']) *
+                        1000.0 else -1)
                 routing_plan_list.append(routing_plan)
                 # 2: foot only
                 routing_plan = RoutingPlan()
@@ -224,7 +250,14 @@ class RoutingPlanInferer(object):
                     "type_id=" +
                     str(type_id) +
                     " AND is_available=true")
-                routing_plan.switch_constraint_list.append(None)
+                if 'driving_distance_limit' in self.options:
+                    routing_plan.switch_constraint_list.append(
+                        VERTEX_VALIDATION_CHECKER(
+                            lambda v: 0 if v[0].distance <= float(
+                                self.options['driving_distance_limit']) *
+                            1000.0 else -1))
+                else:
+                    routing_plan.switch_constraint_list.append(None)
                 routing_plan.is_multimodal = True
                 routing_plan.cost_factor = cost_factor
                 routing_plan.description = 'By car first, then walking without parking'
@@ -253,7 +286,14 @@ class RoutingPlanInferer(object):
                     "type_id=" +
                     str(type_id) +
                     " AND is_available=true")
-                routing_plan.switch_constraint_list.append(None)
+                if 'driving_distance_limit' in self.options:
+                    routing_plan.switch_constraint_list.append(
+                        VERTEX_VALIDATION_CHECKER(
+                            lambda v: 0 if v[0].distance <= float(
+                                self.options['driving_distance_limit']) *
+                            1000.0 else -1))
+                else:
+                    routing_plan.switch_constraint_list.append(None)
                 for p_mode in self.options['available_public_modes']:
                     routing_plan.public_transit_set.append(
                         self.MODES[p_mode])
@@ -273,7 +313,14 @@ class RoutingPlanInferer(object):
                     "type_id=" +
                     str(type_id) +
                     " AND is_available=true")
-                routing_plan.switch_constraint_list.append(None)
+                if 'driving_distance_limit' in self.options:
+                    routing_plan.switch_constraint_list.append(
+                        VERTEX_VALIDATION_CHECKER(
+                            lambda v: 0 if v[0].distance <= float(
+                                self.options['driving_distance_limit']) *
+                            1000.0 else -1))
+                else:
+                    routing_plan.switch_constraint_list.append(None)
                 for p_mode in self.options['available_public_modes']:
                     routing_plan.public_transit_set.append(
                         self.MODES[p_mode])
@@ -310,7 +357,14 @@ class RoutingPlanInferer(object):
                     "type_id=" +
                     str(type_id) +
                     " AND is_available=true")
-                routing_plan.switch_constraint_list.append(None)
+                if 'driving_distance_limit' in self.options:
+                    routing_plan.switch_constraint_list.append(
+                        VERTEX_VALIDATION_CHECKER(
+                            lambda v: 0 if v[0].distance <= float(
+                                self.options['driving_distance_limit']) *
+                                1000.0 / 2 else -1))
+                else:
+                    routing_plan.switch_constraint_list.append(None)
                 routing_plan.is_multimodal = True
                 routing_plan.cost_factor = cost_factor
                 routing_plan.description = 'Driving, parking and walking'
@@ -339,13 +393,20 @@ class RoutingPlanInferer(object):
                     "type_id=" +
                     str(type_id) +
                     " AND is_available=true")
-                routing_plan.switch_constraint_list.append(None)
+                if 'driving_distance_limit' in self.options:
+                    routing_plan.switch_constraint_list.append(
+                        VERTEX_VALIDATION_CHECKER(
+                            lambda v: 0 if v[0].distance <= float(
+                                self.options['driving_distance_limit']) *
+                            1000.0 / 2 else -1))
+                else:
+                    routing_plan.switch_constraint_list.append(None)
                 for p_mode in self.options['available_public_modes']:
                     routing_plan.public_transit_set.append(
                         self.MODES[p_mode])
                 routing_plan.is_multimodal = True
                 routing_plan.cost_factor = cost_factor
-                routing_plan.description = 'Driving and taking public transit'
+                routing_plan.description = 'Driving, parking and taking public transit'
                 routing_plan_list.append(routing_plan)
                 # 5: car-PT with P+R as Switch Point
                 routing_plan = RoutingPlan()
@@ -359,7 +420,14 @@ class RoutingPlanInferer(object):
                     "type_id=" +
                     str(type_id) +
                     " AND is_available=true")
-                routing_plan.switch_constraint_list.append(None)
+                if 'driving_distance_limit' in self.options:
+                    routing_plan.switch_constraint_list.append(
+                        VERTEX_VALIDATION_CHECKER(
+                            lambda v: 0 if v[0].distance <= float(
+                                self.options['driving_distance_limit']) *
+                            1000.0 / 2 else -1))
+                else:
+                    routing_plan.switch_constraint_list.append(None)
                 for p_mode in self.options['available_public_modes']:
                     routing_plan.public_transit_set.append(
                         self.MODES[p_mode])
@@ -389,6 +457,11 @@ class RoutingPlanInferer(object):
                         routing_plan.cost_factor = cost_factor
                         routing_plan.description = 'Driving a car'
                         routing_plan_list.append(routing_plan)
+                        if 'driving_distance_limit' in self.options:
+                            routing_plan.target_constraint = VERTEX_VALIDATION_CHECKER(
+                                lambda v: 0 if v[0].distance <= float(
+                                    self.options['driving_distance_limit']) *
+                                1000.0 else -1)
                         # foot
                         routing_plan = RoutingPlan()
                         routing_plan.mode_list.append(self.MODES['foot'])
