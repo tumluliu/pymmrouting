@@ -3,6 +3,37 @@ Data adapter for reading and parsing multimodal transportation networks and
 related abstraction of facilities
 """
 
+from ctypes import *
+
+
+class Edge(Structure):
+    pass
+
+Edge._fields_ = [("mode_id",        c_int),
+                 ("length",         c_double),
+                 ("length_factor",  c_double),
+                 ("speed_factor",   c_double),
+                 ("from_vertex_id", c_longlong),
+                 ("to_vertex_id",   c_longlong),
+                 ("adjNext",        POINTER(Edge))]
+
+class Vertex(Structure):
+    pass
+
+Vertex._fields_ = [("id",               c_longlong),
+                   ("temp_cost",        c_double),
+                   ("distance",         c_double),
+                   ("elapsed_time",     c_double),
+                   ("walking_distance", c_double),
+                   ("walking_time",     c_double),
+                   ("parent",           POINTER(Vertex)),
+                   ("outdegree",        c_int),
+                   ("outgoing",         POINTER(Edge)),
+                   ("status",           c_int),
+                   ("next",             POINTER(Vertex))]
+
+VERTEX_VALIDATION_CHECKER = CFUNCTYPE(c_int, POINTER(Vertex))
+
 """
 from pymmspa4pg import connect_db, create_routing_plan, set_mode, \
     set_public_transit_mode, set_cost_factor, parse, dispose, \
