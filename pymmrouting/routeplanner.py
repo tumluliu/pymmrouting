@@ -5,23 +5,24 @@
 
 from ctypes import *
 from pymmrouting.routingresult import RoutingResult, MultimodalPath
+from pymmrouting.datamodel import VERTEX_VALIDATION_CHECKER
 import time
 from termcolor import colored
 
 
 c_mmspa_lib = CDLL('libmmspa4pg.dylib')
 
-
 class RoutePlanner(object):
 
     """ Multimodal optimal path planner """
 
     def __init__(self):
-        print "Create a RoutePlanner instance"
         self.data_source_type = ""
         self.graph_file = None
         # For strict type checking, the arguments and returning types are
         # explictly listed here
+        # TODO: mapping c_mmspa_lib interface function to python-style methods
+        self.connect_db = c_mmspa_lib.ConnectDB
         c_mmspa_lib.ConnectDB.argtypes = [c_char_p]
         c_mmspa_lib.ConnectDB.restype = c_int
         c_mmspa_lib.CreateRoutingPlan.argtypes = [c_int, c_int]
@@ -109,11 +110,17 @@ class RoutePlanner(object):
         print "Calculation time: ",
         print colored(str(t2 - t1), "red"),
         print " seconds"
-        result = RoutingResult()
         final_path = c_mmspa_lib.GetFinalPath(
             c_longlong(
                 plan.source), c_longlong(
                 plan.target))
+        routing_result = self._construct_result(plan, final_path)
+        c_mmspa_lib.DisposePaths(final_path)
+        self.disassemble_networks()
+        return routing_result
+
+    def _construct_result(self, plan, final_path):
+        result = RoutingResult()
         result.planned_mode_list = plan.mode_list
         result.description = plan.description
         result.planned_switch_type_list = plan.switch_type_list
@@ -124,9 +131,9 @@ class RoutePlanner(object):
             m_index = 0
             for m in plan.mode_list:
                 result.paths_by_vertex_id[m] = []
-                for i in range(final_path[0].path_segments[m_index].vertex_list_length):
+                for i in range(final_path[m_index].path_segments[0].vertex_list_length):
                     result.paths_by_vertex_id[m].append(
-                        final_path[0].path_segments[m_index].vertex_list[i])
+                        final_path[m_index].path_segments[0].vertex_list[i])
                 m_index += 1
             result.length = c_mmspa_lib.GetFinalCost(
                 c_longlong(
@@ -143,6 +150,5 @@ class RoutePlanner(object):
                 c_longlong(
                     plan.target),
                 'walking_time')
-            c_mmspa_lib.DisposePaths(final_path)
-        self.disassemble_networks()
         return result
+
