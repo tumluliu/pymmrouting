@@ -59,15 +59,20 @@ class RoutePlanner(object):
             self.graph_file.close()
 
     def assemble_networks(self, plan):
+        #print "I am gonna create a routing plan... "
         c_mmspa_lib.CreateRoutingPlan(
             len(plan.mode_list), len(plan.public_transit_set))
         # set mode list
+
+        #print "I am gonna set the mode list items... "
+        #print "most list is: " + str(plan.mode_list)
         i = 0
         for mode in plan.mode_list:
             c_mmspa_lib.SetModeListItem(i, mode)
             i += 1
 
         # set switch conditions and constraints if the plan is multimodal
+        #print "I am gonna set the switch conditions and constraints if there is... "
         if len(plan.mode_list) > 1:
             for i in range(len(plan.mode_list) - 1):
                 c_mmspa_lib.SetSwitchConditionListItem(
@@ -84,9 +89,14 @@ class RoutePlanner(object):
                 c_mmspa_lib.SetPublicTransitModeSetItem(i, mode)
                 i += 1
 
+        #print "I am gonna set the target constraints if there is... "
+        #print "target constraints are: " + str(plan.target_constraint)
         c_mmspa_lib.SetTargetConstraint(plan.target_constraint)
+        #print "I am gonna set the const factor ... "
+        #print "cost factor is: " + str(plan.cost_factor)
         c_mmspa_lib.SetCostFactor(plan.cost_factor)
 
+        print "start parsing multimodal networks..."
         if c_mmspa_lib.Parse() != 0:
             raise Exception("Assembling multimodal networks failed!")
 
@@ -94,7 +104,8 @@ class RoutePlanner(object):
         c_mmspa_lib.Dispose()
 
     def find_path(self, plan):
-        print "Loading multimodal transportation networks ... ",
+        #print 'I am gonna find the path!!!!!!!!!!!!!'
+        #print "Loading multimodal transportation networks ... ",
         t1 = time.time()
         self.assemble_networks(plan)
         t2 = time.time()
@@ -115,7 +126,8 @@ class RoutePlanner(object):
                 plan.source), c_longlong(
                 plan.target))
         routing_result = self._construct_result(plan, final_path)
-        c_mmspa_lib.DisposePaths(final_path)
+        if routing_result.is_existent == True:
+            c_mmspa_lib.DisposePaths(final_path)
         self.disassemble_networks()
         return routing_result
 
@@ -124,13 +136,18 @@ class RoutePlanner(object):
         result.planned_mode_list = plan.mode_list
         result.description = plan.description
         result.planned_switch_type_list = plan.switch_type_list
-        if final_path is None:
+        try:
+            path_probe = final_path[0]
+        except ValueError:
             result.is_existent = False
         else:
             result.is_existent = True
             m_index = 0
             for m in plan.mode_list:
                 result.paths_by_vertex_id[m] = []
+                #print 'final_path[0]: ' + str(final_path[0])
+                #print 'final_path[0].path_segments: ' + str(final_path[0].path_segments)
+                #print 'final_path[0].path_segments[0]: ' + str(final_path[0].path_segments[0])
                 for i in range(final_path[m_index].path_segments[0].vertex_list_length):
                     result.paths_by_vertex_id[m].append(
                         final_path[m_index].path_segments[0].vertex_list[i])
