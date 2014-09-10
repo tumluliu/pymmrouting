@@ -35,6 +35,7 @@ class Edge(object):
         self.length = 0.0
         self.speed_factor = 0.0
         self.mode_id = 0
+        self.obsoleted = False
 
 
 class ParkingLot(object):
@@ -200,7 +201,7 @@ class MultimodalGraphBuilder(object):
         progress = 0
         for osmid, tags, refs in self.multimodal_ways[mode]:
             progress += 1
-            sys.stdout.write("\r%4.1f%%" % (float(progress) / float(total) * 100.0))
+            sys.stdout.write("\r%5.2f%%" % (float(progress) / float(total) * 100.0))
             sys.stdout.flush()
             if self.validate_way(osmid, tags, refs):
                 self.invalid_way_count += 1
@@ -275,39 +276,51 @@ class MultimodalGraphBuilder(object):
         return nearest_vertex
 
     def refine_graph(self):
+        obsoleted_edges = 0
+        total = len(self.vertex_dict)
+        progress = 0
         for v in self.vertex_dict:
+            progress += 1
+            sys.stdout.write("\r%5.2f%%" % (float(progress) / float(total) * 100.0))
+            sys.stdout.flush()
+            outgoings_digest_dict = {}
             if self.vertex_dict[v].outdegree > 1:
-                edges_to_remove = []
                 # push the first edge digest in the dict
-                outgoings_digest_dict = {self.vertex_dict[v].outgoings[0].to_id:
-                                         self.vertex_dict[v].outgoings[0]}
+                outgoings_digest_dict[self.vertex_dict[v].outgoings[0].to_id] = \
+                    (self.vertex_dict[v].outgoings[0].edge_id,
+                     self.vertex_dict[v].outgoings[0].length)
                 for e in self.vertex_dict[v].outgoings[1:]:
                     if e.to_id in outgoings_digest_dict:
+                        #print 'found hyper edge, to_vertex_id is ' + str(e.to_id)
                         # found hyper edge
+                        obsoleted_edges += 1
                         self.vertex_dict[v].outdegree -= 1
-                        if outgoings_digest_dict[e.to_id].length > e.length:
-                            edges_to_remove.append(outgoings_digest_dict[e.to_id])
+                        if outgoings_digest_dict[e.to_id][1] > e.length:
+                            self.edge_dict[outgoings_digest_dict[e.to_id][0]].obsoleted = True
+                            # substitute the edge in digest
+                            outgoings_digest_dict[e.to_id] = (e.edge_id, e.length)
                         else:
-                            edges_to_remove.append(e)
-            for e in edges_to_remove:
-                # remove the duplicated longer edge
-                self.vertex_dict[v].outgoings.remove(e)
-                del self.edge_dict[e.edge_id]
+                            self.edge_dict[e.edge_id].obsoleted = True
+                    else:
+                        # add the new edge to digest
+                        outgoings_digest_dict[e.to_id] = (e.edge_id, e.length)
+        print 'obsoleted edge count: ' + str(obsoleted_edges)
 
     def validate_graph(self):
         invalid_vertex_count = 0
         for v in self.vertex_dict:
-            if self.vertex_dict[v].outdegree != \
-               len(self.vertex_dict[v].outgoings):
+            efficient_to_vertex_list = []
+            for e in self.vertex_dict[v].outgoings:
+                if e.obsoleted == False:
+                    efficient_to_vertex_list.append(e.to_id)
+            if len(efficient_to_vertex_list) != len(set(efficient_to_vertex_list)):
+                print 'invalid vertex with hyper-edge found! vertex_id is ' + str(v)
+                print 'to_vertex list: ' + str(efficient_to_vertex_list)
+                invalid_vertex_count += 1
+            if self.vertex_dict[v].outdegree != len(efficient_to_vertex_list):
                 print 'invalid vertex found! vertex_id is ' + str(v)
                 print 'claimed outdegree is ' + str(self.vertex_dict[v].outdegree)
                 print 'real outdegree is ' + str(len(self.vertex_dict[v].outgoings))
-                invalid_vertex_count += 1
-            to_vertex_list = []
-            for e in self.vertex_dict[v].outgoings:
-                to_vertex_list.append(e.to_id)
-            if len(to_vertex_list) != len(set(to_vertex_list)):
-                print 'invalid vertex with hyper-edge found! vertex_id is ' + str(v)
                 invalid_vertex_count += 1
         if invalid_vertex_count > 0:
             print 'found ' + str(invalid_vertex_count) + ' invalid vertices!'
@@ -327,13 +340,14 @@ class MultimodalGraphBuilder(object):
         self.edges_file.write(
             'length,speed_factor,mode_id,from_id,to_id,edge_id,osm_id\n')
         for e in self.edge_dict:
-            self.edges_file.write(str(self.edge_dict[e].length) + ',' +\
-                                  str(self.edge_dict[e].speed_factor) + ',' +\
-                                  str(self.edge_dict[e].mode_id) + ',' +\
-                                  str(self.edge_dict[e].from_id) + ',' +\
-                                  str(self.edge_dict[e].to_id) + ',' +\
-                                  str(self.edge_dict[e].edge_id) + ',' +\
-                                  str(self.edge_dict[e].osm_id) + '\n')
+            if self.edge_dict[e].obsoleted == False:
+                self.edges_file.write(str(self.edge_dict[e].length) + ',' +\
+                                    str(self.edge_dict[e].speed_factor) + ',' +\
+                                    str(self.edge_dict[e].mode_id) + ',' +\
+                                    str(self.edge_dict[e].from_id) + ',' +\
+                                    str(self.edge_dict[e].to_id) + ',' +\
+                                    str(self.edge_dict[e].edge_id) + ',' +\
+                                    str(self.edge_dict[e].osm_id) + '\n')
 
 # cost | is_available | from_mode_id | to_mode_id | type_id | from_vertex_id | to_vertex_id | switch_point_id | ref_poi_id
         self.switch_points_file.write(
@@ -521,15 +535,18 @@ p = OSMParser(concurrency=2, coords_callback=builder.coords,
               nodes_callback=builder.nodes, ways_callback=builder.ways,
               relations_callback=builder.relations)
 p.parse('/Users/user/Research/data/OSM/munich.osm.pbf')
-print 'Start building foot network... ',
+print 'Start building foot network... '
 builder.build_mode_graph('foot')
-print ' done!',
-print 'Start building car network... ',
+print colored(' done!', 'green')
+print 'Start building car network... '
 builder.build_mode_graph('private_car')
-print ' done!',
-print 'Start building bicycle network... ',
+print colored(' done!', 'green')
+print 'Start building bicycle network... '
 builder.build_mode_graph('bicycle')
-print ' done!',
+print colored(' done!', 'green')
+print 'Start refining multimodal graph set... '
+builder.refine_graph()
+print colored(' done!', 'green')
 if builder.validate_graph():
     #builder.build_switch_points('private_car', 'foot', 'car_parking')
     builder.write_graph()
