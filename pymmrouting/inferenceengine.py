@@ -4,8 +4,9 @@ Infer feasible routing plans according to user preferences
 
 
 import json
-from ctypes import *
-from pymmrouting.datamodel import Vertex, VERTEX_VALIDATION_CHECKER
+# from ctypes import *
+from pymmrouting.datamodel import VERTEX_VALIDATION_CHECKER
+
 
 class RoutingPlan(object):
 
@@ -20,7 +21,7 @@ class RoutingPlan(object):
         self.switch_type_list = []
         self.switch_condition_list = []
         self.switch_constraint_list = []
-        #self.target_constraint = VERTEX_VALIDATION_CHECKER(lambda v: 0)
+        # self.target_constraint = VERTEX_VALIDATION_CHECKER(lambda v: 0)
         self.target_constraint = None
         self.public_transit_set = []
         self.has_public_transit = False
@@ -29,35 +30,34 @@ class RoutingPlan(object):
         self.source = 0
         self.target = 0
 
+
 class RoutingPlanInferer(object):
 
     """
     Infer the feasible routing plans according to routing options
     """
-
     MODES = {
-        'private_car':           1001,
-        'foot':                  1002,
-        'underground':           1003,
-        'suburban':              1004,
-        'tram':                  1005,
-        'bus':                   1006,
-        'public_transportation': 1900,
-        'bicycle':               1007,
-        'taxi':                  1008
+        'private_car':           11,
+        'foot':                  12,
+        'underground':           13,
+        'suburban':              14,
+        'tram':                  15,
+        'bus':                   16,
+        'bicycle':               17,
+        'taxi':                  18,
+        'public_transportation': 19
     }
 
     SWITCH_TYPES = {
-        'car_parking':         2001,
-        'geo_connection':      2002,
-        'park_and_ride':       2003,
-        'underground_station': 2004,
-        'suburban_station':    2005,
-        'tram_station':        2006,
-        'bus_station':         2007,
-        'kiss_and_ride':       2008
+        'car_parking':         91,
+        'geo_connection':      92,
+        'park_and_ride':       93,
+        'underground_station': 94,
+        'suburban_station':    95,
+        'tram_station':        96,
+        'bus_station':         97,
+        'kiss_and_ride':       98
     }
-
 
     def __init__(self):
         self.options = {}
@@ -179,7 +179,7 @@ class RoutingPlanInferer(object):
                 #                  the pedestrian network. This process can avoid the
                 #                  redundant inferred routing plans e.g. foot-PT-foot,
                 #                  PT-foot, foot-PT etc.
-                #                  As a result, the new PT(1900) mode here means the
+                #                  As a result, the new PT(19) mode here means the
                 #                  network composed of pedestrian and selected PT modes
                 #                  networks
                 #
@@ -361,8 +361,7 @@ class RoutingPlanInferer(object):
                     routing_plan.switch_constraint_list.append(
                         VERTEX_VALIDATION_CHECKER(
                             lambda v: 0 if v[0].distance <= float(
-                                self.options['driving_distance_limit']) *
-                                1000.0 / 2 else -1))
+                                self.options['driving_distance_limit']) * 1000.0 / 2 else -1))
                 else:
                     routing_plan.switch_constraint_list.append(None)
                 routing_plan.is_multimodal = True
