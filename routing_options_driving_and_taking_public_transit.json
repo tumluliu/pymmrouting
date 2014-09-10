@@ -1,0 +1,10 @@
+{ 
+    "available_public_modes": ["underground", "tram"],
+    "can_use_taxi":           false,
+    "has_bicycle":            false,
+    "has_motorcycle":         false,
+    "has_private_car":        true,
+    "need_parking":           true,
+    "objective":              "fastest",
+    "driving_distance_limit": 10
+}
