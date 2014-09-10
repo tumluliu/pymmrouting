@@ -1,14 +1,16 @@
 """ RoutingResult class is a part of pymmrouting module """
 
-from ctypes import *
+from ctypes import POINTER, Structure, c_longlong, c_int
 
 
 class Path(Structure):
     _fields_ = [("vertex_list", POINTER(c_longlong)),
                 ("vertex_list_length", c_int)]
 
+
 class MultimodalPath(Structure):
     _fields_ = [("path_segments", POINTER(Path))]
+
 
 class RoutingResult(object):
 
@@ -33,5 +35,8 @@ class RoutingResult(object):
         self.walking_time = 0.0
 
     def show_on_map(self, basemap):
+        print "paths in vertex_id list:"
         print self.paths_by_vertex_id
+        print "paths in osm_id list:"
+        print self.paths_by_link_id
         print "I will be rendered on " + str(basemap)
