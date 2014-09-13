@@ -6,7 +6,7 @@
 from ctypes import CDLL, POINTER, \
     c_double, c_char_p, c_int, c_void_p, c_longlong
 from pymmrouting.routingresult import RoutingResult, MultimodalPath
-from pymmrouting.orm_graphmodel import Edge, Session
+from pymmrouting.orm_graphmodel import Edge, OSMLine, Session, get_waypoints
 from termcolor import colored
 import time
 
@@ -153,14 +153,28 @@ class RoutePlanner(object):
                 m_index += 1
 
             # construct final path by raw osm_id of ways
-            session = Session()
             for m in result.paths_by_vertex_id:
                 result.paths_by_link_id[m] = []
+                result.paths_by_points[m] = {"type": "LineString",
+                                             "coordinates": []}
+                mode_path_points = []
                 for i in range(len(result.paths_by_vertex_id[m])-1):
-                    edge = session.query(Edge).filter(
+                    edge = Session.query(Edge).filter(
                         Edge.from_id == result.paths_by_vertex_id[m][i],
                         Edge.to_id == result.paths_by_vertex_id[m][i+1]).first()
                     result.paths_by_link_id[m].append(int(edge.osm_id))
+                    osm_raw_line = Session.query(OSMLine).filter(
+                        OSMLine.osm_id == edge.osm_id).first()
+                    path_seg_points = get_waypoints(osm_raw_line.way)
+                    if i == 1:
+                        if (mode_path_points[0] == path_seg_points[0]) or \
+                           (mode_path_points[0] == path_seg_points[-1]):
+                            mode_path_points.reverse()
+                    if i >= 1:
+                        if mode_path_points[-1] == path_seg_points[-1]:
+                            path_seg_points.reverse()
+                    mode_path_points += path_seg_points
+                result.paths_by_points[m]['coordinates'] = mode_path_points
 
             result.length = c_mmspa_lib.GetFinalCost(
                 c_longlong(

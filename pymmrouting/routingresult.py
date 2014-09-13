@@ -35,8 +35,10 @@ class RoutingResult(object):
         self.walking_time = 0.0
 
     def show_on_map(self, basemap):
-        print "paths in vertex_id list:"
+        print "paths expressed with vertex_id list:"
         print self.paths_by_vertex_id
-        print "paths in osm_id list:"
+        print "paths expressed with osm_id list:"
         print self.paths_by_link_id
+        print "paths expressed with point coord list in GeoJSON:"
+        print self.paths_by_points
         print "I will be rendered on " + str(basemap)

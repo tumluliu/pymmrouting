@@ -4,11 +4,15 @@ ORM definitions for mapping multimodal graph data stored in PostgreSQL database
 
 from sqlalchemy import create_engine, Column, \
     Integer, BigInteger, Float, Boolean, String
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
+from geoalchemy2 import Geometry
+from geoalchemy2.functions import ST_AsGeoJSON as st_asgeojson
+import json
 
 engine = create_engine('postgresql://liulu:workhard@localhost/mmrp_munich')
-Base = declarative_base()
+Base = declarative_base(bind=engine)
+Session = scoped_session(sessionmaker(engine))
 
 
 class Edge(Base):
@@ -140,10 +144,52 @@ class Mode(Base):
             (self.__class__.__name__, self.mode_name, self.mode_id)
 
 
-Session = sessionmaker()
-Session.configure(bind=engine)
+class OSMLine(Base):
+    """
+    mapping of munich_osm_line
+    """
+    __tablename__ = 'munich_osm_line'
+    osm_id = Column(BigInteger, primary_key=True)
+    amenity = Column(String)
+    highway = Column(String)
+    name = Column(String)
+    oneway = Column(String)
+    way = Column(Geometry(geometry_type='LINESTRING', srid=900913))
+
+    def __repr__(self):
+        return '%s(%r, %r, %r, %r, %r)' % \
+            (self.__class__.__name__,
+             self.osm_id,
+             self.amenity,
+             self.highway,
+             self.name,
+             self.oneway)
+
+
+class OSMPoint(Base):
+    """
+    mapping of munich_osm_point
+    """
+    __tablename__ = 'munich_osm_point'
+    osm_id = Column(BigInteger, primary_key=True)
+    amenity = Column(String)
+    name = Column(String)
+    way = Column(Geometry(geometry_type='POINT', srid=900913))
+
+    def __repr__(self):
+        return '%s(%r, %r, %r)' % \
+            (self.__class__.__name__,
+             self.osm_id,
+             self.amenity,
+             self.name)
+
+def get_waypoints(way_geom):
+    geom_json = json.loads(Session.scalar(st_asgeojson(way_geom)))
+    # print geom_json['coordinates']
+    return geom_json['coordinates']
 
 # session = Session()
 # query = session.query(Edge)
-# e = query.filter(Edge.from_id == 121706196500, Edge.to_id == 121955202).first()
+# e = query.filter(Edge.from_id == 121706196500,
+#                  Edge.to_id == 121955202).first()
 # print e.osm_id
