@@ -62,9 +62,12 @@ class RoutingPlanInferer(object):
     def __init__(self):
         self.options = {}
 
-    def load_routing_options(self, options_file_path):
+    def load_routing_options_from_file(self, options_file_path):
         with open(options_file_path) as options_file:
             self.options = json.load(options_file)
+
+    def load_routing_options_from_string(self, options_json_string):
+        self.options = json.loads(options_json_string)
 
     def generate_routing_plan(self):
         routing_plan_list = []
