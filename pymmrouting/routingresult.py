@@ -1,6 +1,7 @@
 """ RoutingResult class is a part of pymmrouting module """
 
 from ctypes import POINTER, Structure, c_longlong, c_int
+import json
 
 
 class Path(Structure):
@@ -34,11 +35,15 @@ class RoutingResult(object):
         self.walking_length = 0.0
         self.walking_time = 0.0
 
-    def show_on_map(self, basemap):
+    def show_on_map(self, basemap, plan_no):
         print "paths expressed with vertex_id list:"
         print self.paths_by_vertex_id
         print "paths expressed with osm_id list:"
         print self.paths_by_link_id
         print "paths expressed with point coord list in GeoJSON:"
         print self.paths_by_points
+        for m in self.paths_by_points:
+            mode_path_file = open(str(plan_no) + "_" + str(m) + '_path_seg.geojson', 'w')
+            mode_path_file.write(json.dumps(self.paths_by_points[m]))
+            mode_path_file.close()
         print "I will be rendered on " + str(basemap)
