@@ -2,7 +2,6 @@
 Infer feasible routing plans according to user preferences
 """
 
-
 import json
 # from ctypes import *
 from pymmrouting.datamodel import VERTEX_VALIDATION_CHECKER
