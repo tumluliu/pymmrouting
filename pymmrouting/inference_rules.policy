@@ -1,0 +1,70 @@
+# Description of the rules for inferring multimodal routing plans
+# This file is intented to be some sort of DSL for multimodal routing in the future
+#
+rule "Just walk":
+    # only can walk, mono-modal routing
+    when:
+        (options.objective == 'fastest') and 
+        (len(options.available_public_modes) == 0) and 
+        (options.has_private_car == False)
+    then:
+        plan.modes = ['foot']
+        plan.is_multimodal = False
+        plan.cost_factor = 'speed'
+        plan.description = 'Walking'
+        plans = [plan]
+
+rule "Take me there with a car":
+    # somebody else will be the driver
+    # the car can be parked temporarily anywhere
+    # There are 3 possible mode combinations in this case:
+    # car; foot; car-foot with geo_connection as Switch Point
+    when:
+        (options.objective == 'fastest') and 
+        (len(options.available_public_modes) == 0) and 
+        (options.has_private_car == True) and 
+        (options.need_parking == False) and 
+        (options.driving_distance_limit is not undefined)
+    then:
+        plan1.modes = ['private_car']
+        plan1.is_multimodal = False
+        plan1.cost_factor = 'speed'
+        plan1.description = 'Driving a car'
+        plan1.target_constraint = VERTEX_VALIDATION_CHECKER(
+            lambda v: 
+                0 if v[0].distance <= float(options.driving_distance_limit) * 1000.0
+                else -1)
+        plan2.modes = ['foot']
+        plan2.is_multimodal = False
+        plan2.cost_factor = 'speed'
+        plan2.description = 'Walking'
+        plan3.modes = ['private_car', 'foot']
+        plan3.switch_types = ['geo_connection']
+        plan3.switch_conditions = ["type_id=" + encode('geo_connection') + 
+            3                      " AND is_available=true"]
+        plan3.switch_constraints = [VERTEX_VALIDATION_CHECKER(
+            lambda v: 
+                0 if v[0].distance <= float(options.driving_distance_limit) * 1000.0
+                else -1)]
+        plan3.is_multimodal = True
+        plan3.cost_factor = 'speed'
+        plan3.description = 'By car first, then walking without parking'
+        plans = [plan1, plan2, plan3]
+
+rule "Drive there and need a parking lot"
+    # the user may be the driver
+    # and he/she surely need a parking lot for the car
+    # There are also 2 possible mode combinations in this case:
+    # foot; car-foot with parking as Switch Point
+    # 1st: foot only
+
+rule "Take public transit"
+    # 2 possible plans
+
+rule "Drive or take public transit"
+    # 6 possible plans
+
+rule "Drive, take public transit and need a parking lot"
+    # 5 possible plans
+
+rule "Shortest path"
