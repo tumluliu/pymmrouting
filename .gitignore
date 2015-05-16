@@ -54,3 +54,4 @@ docs/_build/
 
 # VIM temp files
 *.swp
+*.un~
