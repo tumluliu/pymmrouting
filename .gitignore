@@ -56,4 +56,12 @@ docs/_build/
 *.swp
 *.un~
 
+# raw data
+dataparser/*.csv
 *.txt
+
+# project temp dir
+tmp/
+
+# real project config 
+config.json
