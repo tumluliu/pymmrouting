@@ -6,7 +6,8 @@
 from ctypes import CDLL, POINTER, \
     c_double, c_char_p, c_int, c_void_p, c_longlong
 from pymmrouting.routingresult import RoutingResult, MultimodalPath
-from pymmrouting.orm_graphmodel import Edge, OSMLine, Session, get_waypoints
+from pymmrouting.orm_graphmodel import Edge, StreetLine, StreetJunction,\
+    Session, get_waypoints
 from termcolor import colored
 import time
 
@@ -77,11 +78,9 @@ class RoutePlanner(object):
         # print "I am gonna set the switch conditions and constraints if there is... "
         if len(plan.mode_list) > 1:
             for i in range(len(plan.mode_list) - 1):
-                c_mmspa_lib.SetSwitchConditionListItem(
-                    i,
+                c_mmspa_lib.SetSwitchConditionListItem(i,
                     plan.switch_condition_list[i])
-                c_mmspa_lib.SetSwitchingConstraint(
-                    i,
+                c_mmspa_lib.SetSwitchingConstraint(i,
                     plan.switch_constraint_list[i])
 
         # set public transit modes if there are

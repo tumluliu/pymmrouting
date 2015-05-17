@@ -1,9 +1,0 @@
-{ 
-    "available_public_modes": [],
-    "can_use_taxi":           false,
-    "has_bicycle":            false,
-    "has_motorcycle":         false,
-    "has_private_car":        true,
-    "need_parking":           true,
-    "objective":              "fastest"
-}

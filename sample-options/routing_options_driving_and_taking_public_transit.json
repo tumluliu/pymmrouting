@@ -7,4 +7,12 @@
     "need_parking":           true,
     "objective":              "fastest",
     "driving_distance_limit": 10
+    "source": {
+        "x": 11.5675, 
+        "y": 48.1495
+    },
+    "target": {
+        "x": 11.5038,
+        "y": 48.1583
+    }
 }

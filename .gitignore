@@ -54,3 +54,14 @@ docs/_build/
 
 # VIM temp files
 *.swp
+*.un~
+
+# raw data
+dataparser/*.csv
+*.txt
+
+# project temp dir
+tmp/
+
+# real project config 
+config.json
