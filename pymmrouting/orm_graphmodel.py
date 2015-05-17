@@ -10,7 +10,6 @@ from geoalchemy2.functions import ST_AsGeoJSON as st_asgeojson
 import json
 import settings
 
-# engine = create_engine('postgresql://liulu:workhard@localhost/mmrp_munich')
 engine = create_engine(URL(**settings.DATABASE))
 Base = declarative_base(bind=engine)
 Session = scoped_session(sessionmaker(engine))
