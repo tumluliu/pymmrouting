@@ -66,6 +66,7 @@ class RoutingPlanInfererTestCase(unittest.TestCase):
     def setUp(self):
         self.routing_options_file1 = "test/routing_options_driving_parking_and_go.json"
         self.routing_options_file2 = "test/routing_options_driving_and_taking_public_transit.json"
+        self.routing_options_file3 = "test/routing_options_take_a_car_and_public_transit.json"
         self.inferer = RoutingPlanInferer()
         self.modes = {str(m_name): m_id
                       for m_name, m_id in
@@ -83,6 +84,7 @@ class RoutingPlanInfererTestCase(unittest.TestCase):
         self.assertIn("target", self.inferer.options)
         self.assertTrue(self.inferer.options["has_private_car"])
         self.assertTrue(self.inferer.options["need_parking"])
+        self.assertEqual(len(self.inferer.options["available_public_modes"]), 0)
         self.assertEqual("coordinate", self.inferer.options["source"]["type"])
         self.assertEqual("coordinate", self.inferer.options["target"]["type"])
         # test for routing options 2
@@ -93,10 +95,20 @@ class RoutingPlanInfererTestCase(unittest.TestCase):
         self.assertIn("target", self.inferer.options)
         self.assertTrue(self.inferer.options["has_private_car"])
         self.assertTrue(self.inferer.options["need_parking"])
-        self.assertGreater(len(self.inferer.options["available_public_modes"]), 0)
+        self.assertEqual(len(self.inferer.options["available_public_modes"]), 2)
         self.assertEqual("coordinate", self.inferer.options["source"]["type"])
         self.assertEqual("coordinate", self.inferer.options["target"]["type"])
-
+        # test for routing options 3
+        self.inferer.load_routing_options_from_file(self.routing_options_file3)
+        self.assertIn("has_private_car", self.inferer.options)
+        self.assertIn("need_parking", self.inferer.options)
+        self.assertIn("source", self.inferer.options)
+        self.assertIn("target", self.inferer.options)
+        self.assertTrue(self.inferer.options["has_private_car"])
+        self.assertFalse(self.inferer.options["need_parking"])
+        self.assertEqual(len(self.inferer.options["available_public_modes"]), 3)
+        self.assertEqual("coordinate", self.inferer.options["source"]["type"])
+        self.assertEqual("coordinate", self.inferer.options["target"]["type"])
 
     def test_generate_routing_plan(self):
         # test for routing options 1
@@ -114,6 +126,15 @@ class RoutingPlanInfererTestCase(unittest.TestCase):
                       [i.mode_list for i in test_plans2])
         self.assertIn([self.modes["private_car"], self.modes["public_transportation"]],
                       [i.mode_list for i in test_plans2])
+        # test for routing options 3
+        self.inferer.load_routing_options_from_file(self.routing_options_file3)
+        test_plans3 = self.inferer.generate_routing_plan()
+        self.assertEqual(5, len(test_plans3))
+        self.assertIn(3, [len(p.public_transit_set) for p in test_plans3])
+        self.assertIn([self.modes["public_transportation"]],
+                      [i.mode_list for i in test_plans2])
+        self.assertNotIn([self.modes["private_car"]],
+                         [i.mode_list for i in test_plans3])
 
 
 if __name__ == "__main__":
