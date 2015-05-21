@@ -125,7 +125,7 @@ class RoutingPlanInferer(object):
                 (t_mode != MODES['public_transportation']):
             target = targets[t_mode] if t_mode in targets else None
             source_list = [sources[m] \
-                           for m in public_transit_modes + MODES['foot'] \
+                           for m in public_transit_modes + [MODES['foot']] \
                            if m in sources]
             if (not target is None) and (len(source_list) > 0):
                 st_pairs = map(lambda s: {"source": s, "target": target},
@@ -134,7 +134,7 @@ class RoutingPlanInferer(object):
                 (t_mode == MODES['public_transportation']):
             source = sources[s_mode] if s_mode in sources else None
             target_list = [targets[m] \
-                           for m in public_transit_modes + MODES['foot'] \
+                           for m in public_transit_modes + [MODES['foot']] \
                            if m in targets]
             if (not source is None) and (len(target_list) > 0):
                 st_pairs = map(lambda t: {"source": source, "target": t},
@@ -142,13 +142,13 @@ class RoutingPlanInferer(object):
         elif (s_mode == MODES['public_transportation']) and \
                 (t_mode == MODES['public_transportation']):
             source_list = [sources[m] \
-                           for m in public_transit_modes + MODES['foot'] \
+                           for m in public_transit_modes + [MODES['foot']] \
                            if m in sources]
             target_list = [targets[m] \
-                           for m in public_transit_modes + MODES['foot'] \
+                           for m in public_transit_modes + [MODES['foot']] \
                            if m in targets]
             if (len(source_list) > 0) and (len(target_list) > 0):
-                st_pairs = [[{"source": s, "target": t} for s in source_list] \
+                st_pairs = [{"source": s, "target": t} for s in source_list \
                                  for t in target_list]
         return st_pairs
 
@@ -171,7 +171,7 @@ class RoutingPlanInferer(object):
                         candidate_sources, candidate_targets, [MODES['foot']])
                     for st in st_pairs:
                         plans.append(RoutingPlan(
-                            'Walking', st["source"], st["target"],
+                            'Walking', st['source'], st['target'],
                             [MODES['foot']], cost_factor))
                     return plans
                 if self.options['has_private_car'] and \
@@ -185,7 +185,7 @@ class RoutingPlanInferer(object):
                         candidate_sources, candidate_targets, [MODES['private_car']])
                     for st in st_pairs:
                         car_plan = RoutingPlan(
-                            'Take a car', st["source"], st["target"],
+                            'Take a car', st['source'], st['target'],
                             [MODES['private_car']], cost_factor)
                         if 'driving_distance_limit' in self.options:
                             car_plan.target_constraint = VERTEX_VALIDATION_CHECKER(
@@ -208,9 +208,15 @@ class RoutingPlanInferer(object):
                     for st in st_pairs:
                         car_foot_plan = RoutingPlan(
                             'By car first, then walking without parking',
-                            source, target, [MODES['private_car'], MODES['foot']],
+                            st['source'], st['target'],
+                            [MODES['private_car'], MODES['foot']],
                             cost_factor, [type_id],
                             ["type_id=" + str(type_id) + " AND is_available=true"])
+                        # FIXME: It is unreasonable to use driving distance limit
+                        # as the extream driving distance because the driver can
+                        # not drive any more after the passenger leaves. So it
+                        # must be convenient to leave some gas for the driver.
+                        # remaining_gas_factor = 0.75
                         if 'driving_distance_limit' in self.options:
                             car_foot_plan.switch_constraint_list = [
                                 VERTEX_VALIDATION_CHECKER(
@@ -228,24 +234,35 @@ class RoutingPlanInferer(object):
                     # There are also 2 possible mode combinations in this case:
                     # foot; car-foot with parking as Switch Point
                     # 1st: foot only
-                    foot_plan = RoutingPlan('Walking', source, target,
-                                            [MODES['foot']], cost_factor)
+                    st_pairs = self._find_valid_source_target_pairs(
+                        candidate_sources, candidate_targets, [MODES['foot']])
+                    for st in st_pairs:
+                        plans.append(RoutingPlan(
+                            'Walking', st["source"], st["target"],
+                            [MODES['foot']], cost_factor))
                     # 2nd: car-foot with parking lots as Switch Point
                     type_id = SWITCH_TYPES['car_parking']
-                    car_foot_plan = RoutingPlan(
-                        'Driving, parking and walking', source, target,
-                        [MODES['private_car'], MODES['foot']],
-                        cost_factor, [type_id],
-                        ["type_id=" + str(type_id) + " AND is_available=true"])
-                    if 'driving_distance_limit' in self.options:
-                        car_foot_plan.switch_constraint_list = [
-                            VERTEX_VALIDATION_CHECKER(
-                                lambda v: 0 if v[0].distance <= float(
-                                    self.options['driving_distance_limit']) *
-                                1000.0 / 2 else -1)]
-                    else:
-                        car_foot_plan.switch_constraint_list = [None]
-                    return [foot_plan, car_foot_plan]
+                    st_pairs = self._find_valid_source_target_pairs(
+                        candidate_sources, candidate_targets,
+                        [MODES['private_car'], MODES['foot']])
+                    for st in st_pairs:
+                        car_foot_plan = RoutingPlan(
+                            'Driving, parking and walking',
+                            st['source'], st['target'],
+                            [MODES['private_car'], MODES['foot']],
+                            cost_factor, [type_id],
+                            ["type_id=" + str(type_id) + " AND is_available=true"])
+                        remaining_gas_factor = 0.5
+                        if 'driving_distance_limit' in self.options:
+                            car_foot_plan.switch_constraint_list = [
+                                VERTEX_VALIDATION_CHECKER(
+                                    lambda v: 0 if v[0].distance <= float(
+                                        self.options['driving_distance_limit']) *
+                                    1000.0 * remaining_gas_factor else -1)]
+                        else:
+                            car_foot_plan.switch_constraint_list = [None]
+                        plans.append(car_foot_plan)
+                    return plans
             else:
                 # can use public transportation system
                 if not self.options['has_private_car']:
@@ -255,15 +272,26 @@ class RoutingPlanInferer(object):
                     # 2. PT
                     #
                     # 1: foot only
-                    foot_plan = RoutingPlan(
-                        'Walking', source, target, [MODES['foot']], cost_factor)
+                    st_pairs = self._find_valid_source_target_pairs(
+                        candidate_sources, candidate_targets, [MODES['foot']])
+                    for st in st_pairs:
+                        plans.append(RoutingPlan(
+                            'Walking', st["source"], st["target"],
+                            [MODES['foot']], cost_factor))
                     # 2: public transportation
-                    public_plan = RoutingPlan(
-                        'Walking and taking public transit', source, target,
-                        [MODES['public_transportation']], cost_factor)
-                    public_plan.public_transit_set = [
-                        MODES[m] for m in self.options['available_public_modes']]
-                    return [foot_plan, public_plan]
+                    public_modes = [MODES[m] for m in \
+                                    self.options['available_public_modes']]
+                    st_pairs = self._find_valid_source_target_pairs(
+                        candidate_sources, candidate_targets,
+                        [MODES['public_transportation']], public_modes)
+                    for st in st_pairs:
+                        public_plan = RoutingPlan(
+                            'Walking and taking public transit',
+                            st['source'], st['target'],
+                            [MODES['public_transportation']], cost_factor)
+                        public_plan.public_transit_set = public_modes
+                        plans.append(public_plan)
+                    return plans
 
             if self.options['has_private_car'] and \
                     (not self.options['need_parking']):
@@ -278,76 +306,110 @@ class RoutingPlanInferer(object):
                 # 6. car-PT with kiss+R as Switch Point;
                 #
                 # 1: car only
-                car_plan = RoutingPlan('Take a car', source, target,
-                                        [MODES['private_car']], cost_factor)
-                if 'driving_distance_limit' in self.options:
-                    car_plan.target_constraint = \
-                        VERTEX_VALIDATION_CHECKER(
-                            lambda v: 0 if v[0].distance <= float(
-                                self.options['driving_distance_limit']) *
-                            1000.0 else -1)
+                st_pairs = self._find_valid_source_target_pairs(
+                    candidate_sources, candidate_targets, [MODES['private_car']])
+                for st in st_pairs:
+                    car_plan = RoutingPlan(
+                        'Take a car', st['source'], st['target'],
+                        [MODES['private_car']], cost_factor)
+                    if 'driving_distance_limit' in self.options:
+                        car_plan.target_constraint = VERTEX_VALIDATION_CHECKER(
+                                lambda v: 0 if v[0].distance <= float(
+                                    self.options['driving_distance_limit']) *
+                                1000.0 else -1)
+                    plans.append(car_plan)
                 # 2: foot only
-                foot_plan = RoutingPlan(
-                    'Walking', source, target, [MODES['foot']], cost_factor)
+                st_pairs = self._find_valid_source_target_pairs(
+                    candidate_sources, candidate_targets, [MODES['foot']])
+                for st in st_pairs:
+                    plans.append(RoutingPlan(
+                        'Walking', st["source"], st["target"],
+                        [MODES['foot']], cost_factor))
                 # 3: car-foot with geo_connection as Switch Point
                 type_id = SWITCH_TYPES['geo_connection']
-                car_foot_plan = RoutingPlan(
-                    'By car first, then walking without parking',
-                    source, target, [MODES['private_car'], MODES['foot']],
-                    cost_factor, [type_id],
-                    ["type_id=" + str(type_id) + " AND is_available=true"])
-                if 'driving_distance_limit' in self.options:
-                    car_foot_plan.switch_constraint_list = [
-                        VERTEX_VALIDATION_CHECKER(
-                            lambda v: 0 if v[0].distance <= float(
-                                self.options['driving_distance_limit']) *
-                            1000.0 else -1)]
-                else:
-                    car_foot_plan.switch_constraint_list = [None]
+                st_pairs = self._find_valid_source_target_pairs(
+                    candidate_sources, candidate_targets,
+                    [MODES['private_car'], MODES['foot']])
+                for st in st_pairs:
+                    car_foot_plan = RoutingPlan(
+                        'By car first, then walking without parking',
+                        st['source'], st['target'],
+                        [MODES['private_car'], MODES['foot']],
+                        cost_factor, [type_id],
+                        ["type_id=" + str(type_id) + " AND is_available=true"])
+                    if 'driving_distance_limit' in self.options:
+                        car_foot_plan.switch_constraint_list = [
+                            VERTEX_VALIDATION_CHECKER(
+                                lambda v: 0 if v[0].distance <= float(
+                                    self.options['driving_distance_limit']) *
+                                1000.0 else -1)]
+                    else:
+                        car_foot_plan.switch_constraint_list = [None]
+                    plans.append(car_foot_plan)
                 # 4: public transportation
-                public_plan = RoutingPlan(
-                    'Walking and taking public transit', source, target,
-                    [MODES['public_transportation']], cost_factor)
-                public_plan.public_transit_set = [
-                    MODES[m] for m in self.options['available_public_modes']]
+                public_modes = [MODES[m] for m in \
+                                self.options['available_public_modes']]
+                st_pairs = self._find_valid_source_target_pairs(
+                    candidate_sources, candidate_targets,
+                    [MODES['public_transportation']], public_modes)
+                for st in st_pairs:
+                    public_plan = RoutingPlan(
+                        'Walking and taking public transit',
+                        st['source'], st['target'],
+                        [MODES['public_transportation']], cost_factor)
+                    public_plan.public_transit_set = public_modes
+                    plans.append(public_plan)
                 # 5: car-PT with geo_connection as Switch Point
                 type_id = SWITCH_TYPES['geo_connection']
-                car_public_plan1 = RoutingPlan(
-                    'Driving and taking public transit',
-                    source, target,
+                public_modes = [MODES[m] for m in \
+                                self.options['available_public_modes']]
+                st_pairs = self._find_valid_source_target_pairs(
+                    candidate_sources, candidate_targets,
                     [MODES['private_car'], MODES['public_transportation']],
-                    cost_factor, [type_id],
-                    ["type_id=" + str(type_id) + " AND is_available=true"])
-                car_public_plan1.public_transit_set = [
-                    MODES[m] for m in self.options['available_public_modes']]
-                if 'driving_distance_limit' in self.options:
-                    car_public_plan1.switch_constraint_list = [
-                        VERTEX_VALIDATION_CHECKER(
-                            lambda v: 0 if v[0].distance <= float(
-                                self.options['driving_distance_limit']) *
-                            1000.0 else -1)]
-                else:
-                    car_public_plan1.switch_constraint_list = [None]
+                    public_modes)
+                for st in st_pairs:
+                    car_public_plan1 = RoutingPlan(
+                        'Driving and taking public transit',
+                        st['source'], st['target'],
+                        [MODES['private_car'], MODES['public_transportation']],
+                        cost_factor, [type_id],
+                        ["type_id=" + str(type_id) + " AND is_available=true"])
+                    car_public_plan1.public_transit_set = public_modes
+                    if 'driving_distance_limit' in self.options:
+                        car_public_plan1.switch_constraint_list = [
+                            VERTEX_VALIDATION_CHECKER(
+                                lambda v: 0 if v[0].distance <= float(
+                                    self.options['driving_distance_limit']) *
+                                1000.0 else -1)]
+                    else:
+                        car_public_plan1.switch_constraint_list = [None]
+                    plans.append(car_public_plan1)
                 # 6: car-PT with kiss+R as Switch Point
                 type_id = SWITCH_TYPES['kiss_and_ride']
-                car_public_plan2 = RoutingPlan(
-                    'Driving and taking public transit via Kiss+R',
-                    source, target,
+                public_modes = [MODES[m] for m in \
+                                self.options['available_public_modes']]
+                st_pairs = self._find_valid_source_target_pairs(
+                    candidate_sources, candidate_targets,
                     [MODES['private_car'], MODES['public_transportation']],
-                    cost_factor, [type_id],
-                    ["type_id=" + str(type_id) + " AND is_available=true"])
-                if 'driving_distance_limit' in self.options:
-                    car_public_plan2.switch_constraint_list = [
-                        VERTEX_VALIDATION_CHECKER(
-                            lambda v: 0 if v[0].distance <= float(
-                                self.options['driving_distance_limit']) *
-                            1000.0 else -1)]
-                else:
-                    car_public_plan2.switch_constraint_list = [None]
-                car_public_plan2.public_transit_set = [
-                    MODES[m] for m in self.options['available_public_modes']]
-                return [car_plan, foot_plan, public_plan, car_foot_plan,
-                        car_public_plan1, car_public_plan2]
+                    public_modes)
+                for st in st_pairs:
+                    car_public_plan2 = RoutingPlan(
+                        'Driving and taking public transit via Kiss+R',
+                        st['source'], st['target'],
+                        [MODES['private_car'], MODES['public_transportation']],
+                        cost_factor, [type_id],
+                        ["type_id=" + str(type_id) + " AND is_available=true"])
+                    car_public_plan2.public_transit_set = public_modes
+                    if 'driving_distance_limit' in self.options:
+                        car_public_plan2.switch_constraint_list = [
+                            VERTEX_VALIDATION_CHECKER(
+                                lambda v: 0 if v[0].distance <= float(
+                                    self.options['driving_distance_limit']) *
+                                1000.0 else -1)]
+                    else:
+                        car_public_plan2.switch_constraint_list = [None]
+                    plans.append(car_public_plan2)
+                return plans
 
             if self.options['has_private_car'] and self.options['need_parking']:
                 # the user may be the driver
@@ -360,90 +422,133 @@ class RoutingPlanInferer(object):
                 # 5. car-PT with P+R as Switch Points;
                 #
                 # 1: foot only
-                foot_plan = RoutingPlan('Walking', source, target,
-                                        [MODES['foot']], cost_factor)
+                st_pairs = self._find_valid_source_target_pairs(
+                    candidate_sources, candidate_targets, [MODES['foot']])
+                for st in st_pairs:
+                    plans.append(RoutingPlan(
+                        'Walking', st['source'], st['target'],
+                        [MODES['foot']], cost_factor))
                 # 2: car-foot with parking lots as Switch Point
                 type_id = SWITCH_TYPES['car_parking']
-                car_foot_plan = RoutingPlan(
-                    'Driving, parking and walking', source, target,
-                    [MODES['private_car'], MODES['foot']], cost_factor, [type_id],
-                    ["type_id=" + str(type_id) + " AND is_available=true"])
-                if 'driving_distance_limit' in self.options:
-                    car_foot_plan.switch_constraint_list = [
-                        VERTEX_VALIDATION_CHECKER(
-                            lambda v: 0 if v[0].distance <= float(
-                                self.options['driving_distance_limit']) *
-                            1000.0 / 2 else -1)]
-                else:
-                    car_foot_plan.switch_constraint_list = [None]
+                st_pairs = self._find_valid_source_target_pairs(
+                    candidate_sources, candidate_targets,
+                    [MODES['private_car'], MODES['foot']])
+                for st in st_pairs:
+                    car_foot_plan = RoutingPlan(
+                        'Driving, parking and walking',
+                        st['source'], st['target'],
+                        [MODES['private_car'], MODES['foot']],
+                        cost_factor, [type_id],
+                        ["type_id=" + str(type_id) + " AND is_available=true"])
+                    remaining_gas_factor = 0.5
+                    if 'driving_distance_limit' in self.options:
+                        car_foot_plan.switch_constraint_list = [
+                            VERTEX_VALIDATION_CHECKER(
+                                lambda v: 0 if v[0].distance <= float(
+                                    self.options['driving_distance_limit']) *
+                                1000.0 * remaining_gas_factor else -1)]
+                    else:
+                        car_foot_plan.switch_constraint_list = [None]
+                    plans.append(car_foot_plan)
                 # 3: public transportation
-                public_plan = RoutingPlan(
-                    'Walking and taking public transit', source, target,
-                    [MODES['public_transportation']], cost_factor)
-                public_plan.public_transit_set = [
-                    MODES[m] for m in self.options['available_public_modes']]
+                public_modes = [MODES[m] for m in \
+                                self.options['available_public_modes']]
+                st_pairs = self._find_valid_source_target_pairs(
+                    candidate_sources, candidate_targets,
+                    [MODES['public_transportation']], public_modes)
+                print st_pairs
+                for st in st_pairs:
+                    print st
+                    public_plan = RoutingPlan(
+                        'Walking and taking public transit',
+                        st['source'], st['target'],
+                        [MODES['public_transportation']], cost_factor)
+                    public_plan.public_transit_set = public_modes
+                    plans.append(public_plan)
                 # 4: car-PT with parking as Switch Point
                 type_id = SWITCH_TYPES['car_parking']
-                car_public_plan1 = RoutingPlan(
-                    'Driving, parking and taking public transit',
-                    source, target,
+                public_modes = [MODES[m] for m in \
+                                self.options['available_public_modes']]
+                st_pairs = self._find_valid_source_target_pairs(
+                    candidate_sources, candidate_targets,
                     [MODES['private_car'], MODES['public_transportation']],
-                    cost_factor, [type_id],
-                    ["type_id=" + str(type_id) + " AND is_available=true"])
-                car_public_plan1.public_transit_set = [
-                    MODES[m] for m in self.options['available_public_modes']]
-                if 'driving_distance_limit' in self.options:
-                    car_public_plan1.switch_constraint_list = [
-                        VERTEX_VALIDATION_CHECKER(
-                            lambda v: 0 if v[0].distance <= float(
-                                self.options['driving_distance_limit']) *
-                            1000.0 / 2 else -1)]
-                else:
-                    car_public_plan1.switch_constraint_list = [None]
+                    public_modes)
+                for st in st_pairs:
+                    car_public_plan1 = RoutingPlan(
+                        'Driving, parking and taking public transit',
+                        st['source'], st['target'],
+                        [MODES['private_car'], MODES['public_transportation']],
+                        cost_factor, [type_id],
+                        ["type_id=" + str(type_id) + " AND is_available=true"])
+                    car_public_plan1.public_transit_set = public_modes
+                    if 'driving_distance_limit' in self.options:
+                        car_public_plan1.switch_constraint_list = [
+                            VERTEX_VALIDATION_CHECKER(
+                                lambda v: 0 if v[0].distance <= float(
+                                    self.options['driving_distance_limit']) *
+                                1000.0 else -1)]
+                    else:
+                        car_public_plan1.switch_constraint_list = [None]
+                    plans.append(car_public_plan1)
                 # 5: car-PT with P+R as Switch Point
                 type_id = SWITCH_TYPES['park_and_ride']
-                car_public_plan2 = RoutingPlan(
-                    'Driving, parking and taking public transit',
-                    source, target,
+                public_modes = [MODES[m] for m in \
+                                self.options['available_public_modes']]
+                st_pairs = self._find_valid_source_target_pairs(
+                    candidate_sources, candidate_targets,
                     [MODES['private_car'], MODES['public_transportation']],
-                    cost_factor, [type_id],
-                    ["type_id=" + str(type_id) + " AND is_available=true"])
-                car_public_plan2.public_transit_set = [
-                    MODES[m] for m in self.options['available_public_modes']]
-                if 'driving_distance_limit' in self.options:
-                    car_public_plan2.switch_constraint_list = [
-                        VERTEX_VALIDATION_CHECKER(
-                            lambda v: 0 if v[0].distance <= float(
-                                self.options['driving_distance_limit']) *
-                            1000.0 / 2 else -1)]
-                else:
-                    car_public_plan2.switch_constraint_list = [None]
-                return [foot_plan, car_foot_plan, public_plan,
-                        car_public_plan1, car_public_plan2]
+                    public_modes)
+                for st in st_pairs:
+                    car_public_plan1 = RoutingPlan(
+                        'Driving, parking and taking public transit',
+                        st['source'], st['target'],
+                        [MODES['private_car'], MODES['public_transportation']],
+                        cost_factor, [type_id],
+                        ["type_id=" + str(type_id) + " AND is_available=true"])
+                    car_public_plan1.public_transit_set = public_modes
+                    if 'driving_distance_limit' in self.options:
+                        car_public_plan1.switch_constraint_list = [
+                            VERTEX_VALIDATION_CHECKER(
+                                lambda v: 0 if v[0].distance <= float(
+                                    self.options['driving_distance_limit']) *
+                                1000.0 else -1)]
+                    else:
+                        car_public_plan1.switch_constraint_list = [None]
+                    plans.append(car_public_plan1)
+                return plans
 
             elif self.options['objective'] == 'shortest':
                 if not self.options['can_use_public']:
                     if not self.options['has_private_car']:
                         # no car, walk only
-                        foot_plan = RoutingPlan(
-                            'Walking', source, target, [MODES['foot']],
-                            cost_factor)
-                        return [foot_plan]
+                        st_pairs = self._find_valid_source_target_pairs(
+                            candidate_sources, candidate_targets, [MODES['foot']])
+                        for st in st_pairs:
+                            plans.append(RoutingPlan(
+                                'Walking', st['source'], st['target'],
+                                [MODES['foot']], cost_factor))
                     else:
                         # car
-                        car_plan = RoutingPlan(
-                            'Take a car', source, target, [MODES['private_car']],
-                            cost_factor)
-                        if 'driving_distance_limit' in self.options:
-                            car_plan.target_constraint = \
-                                VERTEX_VALIDATION_CHECKER(
-                                    lambda v: 0 if v[0].distance <= float(
-                                        self.options['driving_distance_limit']) *
-                                    1000.0 else -1)
+                        st_pairs = self._find_valid_source_target_pairs(
+                            candidate_sources, candidate_targets, [MODES['private_car']])
+                        for st in st_pairs:
+                            car_plan = RoutingPlan(
+                                'Take a car', st['source'], st['target'],
+                                [MODES['private_car']], cost_factor)
+                            if 'driving_distance_limit' in self.options:
+                                car_plan.target_constraint = VERTEX_VALIDATION_CHECKER(
+                                        lambda v: 0 if v[0].distance <= float(
+                                            self.options['driving_distance_limit']) *
+                                        1000.0 else -1)
+                            plans.append(car_plan)
                         # foot
-                        foot_plan = RoutingPlan('Walking', source, target,
-                                                [MODES['foot']], cost_factor)
-                        return [car_plan, foot_plan]
+                        st_pairs = self._find_valid_source_target_pairs(
+                            candidate_sources, candidate_targets, [MODES['foot']])
+                        for st in st_pairs:
+                            plans.append(RoutingPlan(
+                                'Walking', st['source'], st['target'],
+                                [MODES['foot']], cost_factor))
+                        return plans
                 else:
                     # TODO: finish this branch
                     return []
