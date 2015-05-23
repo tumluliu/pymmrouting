@@ -24,31 +24,31 @@ class RoutingPlan(object):
     A plan of routing including transportation tools to use
     during the trip
     """
-    mode_list = []
-    switch_type_list = []
-    switch_condition_list = []
+    mode_list              = []
+    switch_type_list       = []
+    switch_condition_list  = []
     switch_constraint_list = []
-    target_constraint = None
-    public_transit_set = []
-    cost_factor = ''
-    description = ''
-    source = 0
-    target = 0
+    target_constraint      = None
+    public_transit_set     = []
+    cost_factor            = ''
+    description            = ''
+    source                 = 0
+    target                 = 0
 
     def __init__(self, desc, source, target, modes, cost,
                  switch_types=[], switch_conditions=[],
                  switch_constraints=[], target_constraint=None,
                  public_transits=[]):
-        self.description = desc
-        self.source = source
-        self.target = target
-        self.mode_list = modes
-        self.cost_factor = cost
-        self.switch_type_list = switch_types
-        self.switch_condition_list = switch_conditions
+        self.description            = desc
+        self.source                 = source
+        self.target                 = target
+        self.mode_list              = modes
+        self.cost_factor            = cost
+        self.switch_type_list       = switch_types
+        self.switch_condition_list  = switch_conditions
         self.switch_constraint_list = switch_constraints
-        self.target_constraint = target_constraint
-        self.public_transit_set = public_transits
+        self.target_constraint      = target_constraint
+        self.public_transit_set     = public_transits
 
     @property
     def is_multimodal(self):
