@@ -420,5 +420,11 @@ class StreetJunction(Base):
 
 def get_waypoints(way_geom):
     geom_json = json.loads(Session.scalar(st_asgeojson(way_geom)))
+    coord_list = []
+    if geom_json['type'].upper() == 'LINESTRING':
+        coord_list = geom_json['coordinates']
+    elif geom_json['type'].upper() == 'MULTILINESTRING':
+        coord_list = [j for i in geom_json['coordinates'] for j in i]
+    # print geom_json
     # print geom_json['coordinates']
-    return geom_json['coordinates']
+    return coord_list
