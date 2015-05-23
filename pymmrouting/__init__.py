@@ -4,7 +4,7 @@
 __all__ = ['routeplanner', 'inferenceengine', 'routingresult',
            'switchcondition']
 
-from pymmrouting.routeplanner import RoutePlanner
+from pymmrouting.routeplanner import MultimodalRoutePlanner
 from pymmrouting.inferenceengine import RoutingPlan, RoutingPlanInferer
 from pymmrouting.routingresult import RoutingResult
 from pymmrouting.switchcondition import SwitchCondition
