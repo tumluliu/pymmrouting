@@ -7,15 +7,22 @@ from ctypes import CDLL, POINTER, \
     c_double, c_char_p, c_int, c_void_p, c_longlong
 from pymmrouting.routingresult import RoutingResult, MultimodalPath
 from pymmrouting.orm_graphmodel import Edge, StreetLine, StreetJunction,\
-    Session, get_waypoints
+    Session, get_waypoints, Mode, SwitchType
 from termcolor import colored
 import time
 
 
 c_mmspa_lib = CDLL('libmmspa4pg.dylib')
+# Read modes and switch_types from database instead of hard coding it here
+MODES         = {str(m_name): m_id
+                 for m_name, m_id in
+                 Session.query(Mode.mode_name, Mode.mode_id)}
+SWITCH_TYPES  = {str(t_name): t_id
+                 for t_name, t_id in
+                 Session.query(SwitchType.type_name, SwitchType.type_id)}
 
 
-class RoutePlanner(object):
+class MultimodalRoutePlanner(object):
 
     """ Multimodal optimal path planner """
 
@@ -49,11 +56,11 @@ class RoutePlanner(object):
     def open_datasource(self, ds_type, ds_url):
         self.data_source_type = ds_type.upper()
         if ds_type.upper() == "POSTGRESQL":
-            return c_mmspa_lib.ConnectDB(ds_url)
+            ret_code = c_mmspa_lib.ConnectDB(ds_url)
+            if ret_code != 0: raise Exception("[FATAL] Open datasource failed")
         elif ds_type.upper() == "PLAIN_TEXT":
             self.graph_file = open(ds_url)
             # FIXME: here should return a status code
-        return 0
 
     def close_datasource(self):
         if self.data_source_type == "POSTGRESQL":
@@ -104,9 +111,23 @@ class RoutePlanner(object):
     def disassemble_networks(self):
         c_mmspa_lib.Dispose()
 
+    def batch_find_path(self, plans):
+        routing_results = []
+        for p in plans:
+            routing_results.append(self.find_path(p))
+        return routing_results
+
+    def refine_results(self, result_list):
+        # TODO Deduplicate the routing results
+        # TODO Remove (set is_existent = false) the path containing pure
+        # walking path in public_transportation mode
+        return result_list
+
     def find_path(self, plan):
-        # print 'I am gonna find the path!!!!!!!!!!!!!'
-        # print "Loading multimodal transportation networks ... ",
+        print "I am gonna find the path!!!!!!!!!!!!!"
+        print "source: " + str(plan.source)
+        print "target: " + str(plan.target)
+        print "Loading multimodal transportation networks ... ",
         t1 = time.time()
         self.assemble_networks(plan)
         t2 = time.time()
@@ -132,6 +153,11 @@ class RoutePlanner(object):
         self.disassemble_networks()
         return routing_result
 
+    def _geo_diff(self, p1, p2):
+        x_diff = abs(p1[0] - p2[0])
+        y_diff = abs(p1[1] - p2[1])
+        return (x_diff + y_diff) * 0.5
+
     def _construct_result(self, plan, final_path):
         result = RoutingResult()
         result.planned_mode_list = plan.mode_list
@@ -151,7 +177,7 @@ class RoutePlanner(object):
                         final_path[m_index].path_segments[0].vertex_list[i])
                 m_index += 1
 
-            # construct final path by raw osm_id of ways
+            # construct final path by raw geom
             for m in result.paths_by_vertex_id:
                 result.paths_by_link_id[m] = []
                 result.paths_by_points[m] = {"type": "LineString",
@@ -161,16 +187,19 @@ class RoutePlanner(object):
                     edge = Session.query(Edge).filter(
                         Edge.from_id == result.paths_by_vertex_id[m][i],
                         Edge.to_id == result.paths_by_vertex_id[m][i+1]).first()
-                    result.paths_by_link_id[m].append(int(edge.osm_id))
-                    osm_raw_line = Session.query(OSMLine).filter(
-                        OSMLine.osm_id == edge.osm_id).first()
-                    path_seg_points = get_waypoints(osm_raw_line.way)
+                    result.paths_by_link_id[m].append(int(edge.edge_id / 100))
+                    um_raw_line = Session.query(StreetLine).filter(
+                        StreetLine.um_id == edge.edge_id / 100).first()
+                    path_seg_points = get_waypoints(um_raw_line.the_geom)
+                    #print "Raw geometry in UM StreetLine: "
+                    #print path_seg_points
+                    threshold = 1.0e-6
                     if i == 1:
-                        if (mode_path_points[0] == path_seg_points[0]) or \
-                           (mode_path_points[0] == path_seg_points[-1]):
+                        if (self._geo_diff(mode_path_points[0], path_seg_points[0]) <= threshold) or \
+                           (self._geo_diff(mode_path_points[0], path_seg_points[-1]) <= threshold):
                             mode_path_points.reverse()
                     if i >= 1:
-                        if mode_path_points[-1] == path_seg_points[-1]:
+                        if self._geo_diff(mode_path_points[-1], path_seg_points[-1]) <= threshold:
                             path_seg_points.reverse()
                     mode_path_points += path_seg_points
                 result.paths_by_points[m]['coordinates'] = mode_path_points
