@@ -36,19 +36,19 @@ class RoutingPlan(object):
     target                 = 0
 
     def __init__(self, desc, source, target, modes, cost,
-                 switch_types=[], switch_conditions=[],
-                 switch_constraints=[], target_constraint=None,
-                 public_transits=[]):
+                 switch_types=None, switch_conditions=None,
+                 switch_constraints=None, target_constraint=None,
+                 public_transits=None):
         self.description            = desc
         self.source                 = source
         self.target                 = target
         self.mode_list              = modes
         self.cost_factor            = cost
-        self.switch_type_list       = switch_types
-        self.switch_condition_list  = switch_conditions
-        self.switch_constraint_list = switch_constraints
+        self.switch_type_list       = [] if switch_types is None else switch_types
+        self.switch_condition_list  = [] if switch_conditions is None else switch_conditions
+        self.switch_constraint_list = [] if switch_constraints is None else switch_constraints
         self.target_constraint      = target_constraint
-        self.public_transit_set     = public_transits
+        self.public_transit_set     = [] if public_transits is None else public_transits
 
     @property
     def is_multimodal(self):
