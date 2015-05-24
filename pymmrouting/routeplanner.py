@@ -5,7 +5,7 @@
 
 from ctypes import CDLL, POINTER, \
     c_double, c_char_p, c_int, c_void_p, c_longlong
-from pymmrouting.routingresult import RoutingResult, MultimodalPath
+from pymmrouting.routingresult import RoutingResult, RawMultimodalPath, ModePath
 from pymmrouting.orm_graphmodel import Edge, StreetLine, StreetJunction,\
     Session, get_waypoints, Mode, SwitchType
 from termcolor import colored
@@ -48,10 +48,10 @@ class MultimodalRoutePlanner(object):
         c_mmspa_lib.Parse.restype = c_int
         c_mmspa_lib.MultimodalTwoQ.argtypes = [c_longlong]
         c_mmspa_lib.GetFinalPath.argtypes = [c_longlong, c_longlong]
-        c_mmspa_lib.GetFinalPath.restype = POINTER(MultimodalPath)
+        c_mmspa_lib.GetFinalPath.restype = POINTER(RawMultimodalPath)
         c_mmspa_lib.GetFinalCost.argtypes = [c_longlong, c_char_p]
         c_mmspa_lib.GetFinalCost.restype = c_double
-        c_mmspa_lib.DisposePaths.argtypes = [POINTER(MultimodalPath)]
+        c_mmspa_lib.DisposePaths.argtypes = [POINTER(RawMultimodalPath)]
 
     def open_datasource(self, ds_type, ds_url):
         self.data_source_type = ds_type.upper()
@@ -153,11 +153,6 @@ class MultimodalRoutePlanner(object):
         self.disassemble_networks()
         return routing_result
 
-    def _geo_diff(self, p1, p2):
-        x_diff = abs(p1[0] - p2[0])
-        y_diff = abs(p1[1] - p2[1])
-        return (x_diff + y_diff) * 0.5
-
     def _construct_result(self, plan, final_path):
         result = RoutingResult()
         result.planned_mode_list = plan.mode_list
@@ -171,52 +166,41 @@ class MultimodalRoutePlanner(object):
             result.is_existent = True
             m_index = 0
             for m in plan.mode_list:
-                result.paths_by_vertex_id[m] = []
+                #print "Constructing mode " + str(m)
+                mp = ModePath(m)
+                #print "mode path vertex id list before construction: "
+                #print mp.vertex_id_list
                 for i in range(final_path[m_index].path_segments[0].vertex_list_length):
-                    result.paths_by_vertex_id[m].append(
-                        final_path[m_index].path_segments[0].vertex_list[i])
+                    v = final_path[m_index].path_segments[0].vertex_list[i]
+                    #print "appending vertex " + str(v) + " into mode path"
+                    mp.vertex_id_list.append(v)
                 m_index += 1
+                #print "vertex id list for mode " + str(m)
+                #print mp.vertex_id_list
+                result.mode_paths.append(mp)
 
-            # construct final path by raw geom
-            for m in result.paths_by_vertex_id:
-                result.paths_by_link_id[m] = []
-                result.paths_by_points[m] = {"type": "LineString",
-                                             "coordinates": []}
-                mode_path_points = []
-                for i in range(len(result.paths_by_vertex_id[m])-1):
-                    edge = Session.query(Edge).filter(
-                        Edge.from_id == result.paths_by_vertex_id[m][i],
-                        Edge.to_id == result.paths_by_vertex_id[m][i+1]).first()
-                    result.paths_by_link_id[m].append(int(edge.edge_id / 100))
-                    um_raw_line = Session.query(StreetLine).filter(
-                        StreetLine.um_id == edge.edge_id / 100).first()
-                    path_seg_points = get_waypoints(um_raw_line.the_geom)
-                    #print "Raw geometry in UM StreetLine: "
-                    #print path_seg_points
-                    threshold = 1.0e-6
-                    if i == 1:
-                        if (self._geo_diff(mode_path_points[0], path_seg_points[0]) <= threshold) or \
-                           (self._geo_diff(mode_path_points[0], path_seg_points[-1]) <= threshold):
-                            mode_path_points.reverse()
-                    if i >= 1:
-                        if self._geo_diff(mode_path_points[-1], path_seg_points[-1]) <= threshold:
-                            path_seg_points.reverse()
-                    mode_path_points += path_seg_points
-                result.paths_by_points[m]['coordinates'] = mode_path_points
+            #print "mode path info in result: "
+            #print "number of mode_path: " + str(len(result.mode_paths))
+            #for mp in result.mode_paths:
+                #print "mode: " + str(mp.mode)
+                #print "vertex id list: "
+                #print mp.vertex_id_list
+                #print "edge id list: "
+                #print mp.edge_id_list
+                #print "link id list: "
+                #print mp.link_id_list
 
+            #print "vertex id list before unfolding: "
+            #print result.path_by_vertices
+            result.unfold_sub_paths()
+            #print "vertex id list after unfolding: "
+            #print result.path_by_vertices
             result.length = c_mmspa_lib.GetFinalCost(
-                c_longlong(
-                    plan.target),
-                'distance')
+                c_longlong(plan.target), 'distance')
             result.time = c_mmspa_lib.GetFinalCost(
-                c_longlong(
-                    plan.target),
-                'elapsed_time')
+                c_longlong(plan.target), 'elapsed_time')
             result.walking_length = c_mmspa_lib.GetFinalCost(
-                c_longlong(plan.target),
-                'walking_distance')
+                c_longlong(plan.target), 'walking_distance')
             result.walking_time = c_mmspa_lib.GetFinalCost(
-                c_longlong(
-                    plan.target),
-                'walking_time')
+                c_longlong(plan.target), 'walking_time')
         return result
