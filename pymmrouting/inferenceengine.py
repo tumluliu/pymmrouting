@@ -7,6 +7,15 @@ import json
 from pymmrouting.datamodel import VERTEX_VALIDATION_CHECKER
 from pymmrouting.orm_graphmodel import SwitchType, Mode, Session, \
     Vertex, StreetJunction
+import logging
+
+logger = logging.getLogger('Inference Engine')
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 INTERNAL_SRID = 4326
 # Read modes and switch_types from database instead of hard coding it here
@@ -99,10 +108,13 @@ class RoutingPlanInferer(object):
         point = 'POINT(' + str(location['lon']) + ' ' + \
             str(location['lat']) + ')'
         nearest_neighbor = Session.query(StreetJunction).order_by(
-            StreetJunction.the_geom.distance_box(point)).first()
-        node_id = nearest_neighbor.nodeid
+            StreetJunction.geom.distance_box(point)).first()
+        raw_point_id = nearest_neighbor.osm_id
+        logger.debug("found nearest neighbor, osm_id is " + str(raw_point_id))
         candidate_vertices = Session.query(Vertex).filter(
-            Vertex.vertex_id % 10000000 == node_id).all()
+            Vertex.raw_point_id == raw_point_id).all()
+        v_id_list = [str(v.vertex_id) for v in candidate_vertices]
+        logger.debug("candidate vertices: " + ','.join(v_id_list))
         return {v.mode_id: v.vertex_id for v in candidate_vertices}
 
     def _get_cost_factor(self, objective):
@@ -151,8 +163,6 @@ class RoutingPlanInferer(object):
                 st_pairs = [{"source": s, "target": t} for s in source_list \
                                  for t in target_list]
         return st_pairs
-
-
 
     def generate_routing_plan(self):
         if self.options == {}:
