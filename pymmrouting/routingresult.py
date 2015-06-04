@@ -5,6 +5,10 @@ from pymmrouting.orm_graphmodel import Mode, Session, Vertex, Edge, \
     StreetLine, get_waypoints
 from itertools import tee, izip
 import json
+import logging
+
+logging.basicConfig()
+logging.getLogger('sqlalchemy.engine').setLevel(logging.WARN)
 
 MODES         = {str(m_name): m_id
                  for m_name, m_id in
@@ -22,10 +26,9 @@ class ModePath(object):
     """ Path description of a single transportation mode
     """
 
-    def __init__(self, mode, init_vertices=None, provider='UM'):
+    def __init__(self, mode, init_vertices=None):
         self.mode           = mode
         self.vertex_id_list = [] if init_vertices is None else init_vertices
-        self.data_provider  = provider
         self._link_id_list  = []
         self._edge_id_list  = []
         self._point_list    = []
@@ -55,21 +58,49 @@ class ModePath(object):
 
     def _get_way_points_between_vertices(self, u, v):
         raw_link_id = Session.query(Edge.raw_link_id).filter(
-            Edge.from_id == u, Edge.to_id == v).first()
-        if self.data_provider.upper() in ['UNITEDMAPS', 'UM']:
-            return get_waypoints(Session.query(StreetLine.the_geom).filter(
-                StreetLine.um_id == raw_link_id).first())
-        elif self.data_provider.upper() in ['OPENSTREETMAP', 'OSM']:
-            return get_waypoints(Session.query(OSMLine.way).filter(
-                OSMLine.osm_id == raw_link_id).first())
-        return []
+        Edge.from_id == u, Edge.to_id == v).first()
+        #print "mode of the current path: " + str(self.mode)
+        #print "fnodeid: " + str(raw_fnodeid)
+        #print "tnodeid: " + str(raw_tnodeid)
+        # FIXME: It is not reliable to find the line feature by
+        # fnodeid/tnodeid pair or um_id because both of them are not
+        # unique. There is actually no unique id field available in UM
+        # dataset except the sequence id - gid generated when importing to
+        # database. So perhaps I have to use gid as the reference id when
+        # searching for the line feature although this is not good in
+        # practice.
+        coord_list = []
+        if self.mode in [MODES['private_car'], MODES['foot']]:
+            return get_waypoints(Session.query(StreetLine.geom).filter(
+                StreetLine.osm_id == raw_link_id).first().geom)
+        elif self.mode == MODES['underground']:
+            sql = "SELECT ST_AsGeoJSON(underground_lines.geom, 4326) AS line_geom \
+                FROM underground_lines WHERE (fnodeid = :fnode AND tnodeid = :tnode) \
+                OR (fnodeid = :tnode AND tnodeid = :fnode) LIMIT 1;"
+        elif self.mode == MODES['suburban']:
+            sql = "SELECT ST_AsGeoJSON(suburban_lines.geom, 4326) AS line_geom \
+                FROM suburban_lines WHERE (fnodeid = :fnode AND tnodeid = :tnode) \
+                OR (fnodeid = :tnode AND tnodeid = :fnode) LIMIT 1;"
+        elif self.mode == MODES['tram']:
+            sql = "SELECT ST_AsGeoJSON(tram_lines.geom, 4326) AS line_geom \
+                FROM tram_lines WHERE (fnodeid = :fnode AND tnodeid = :tnode) \
+                OR (fnodeid = :tnode AND tnodeid = :fnode) LIMIT 1;"
+        raw_fnodeid = u % 100000000
+        raw_tnodeid = v % 100000000
+        linestring = Session.execute(sql, {'fnode': raw_fnodeid,
+                                           'tnode': raw_tnodeid}).fetchall()
+        coords = json.loads(linestring[0][0])['coordinates']
+        coord_list = [j for i in coords for j in i]
+        print "coordinate list between " + str(u) + " and " + str(v) + ":"
+        print coord_list
+        return coord_list
 
     def _geo_diff(self, p1, p2):
         x_diff = abs(p1[0] - p2[0])
         y_diff = abs(p1[1] - p2[1])
         return (x_diff + y_diff) * 0.5
 
-    def _concat_seg_points(self, index, path_seg_points, threshold=1.0e-5):
+    def _concat_seg_points(self, index, path_seg_points, threshold=1.0e-6):
         if index == 1:
             if (self._geo_diff(self._point_list[0], path_seg_points[0]) <= threshold) or \
                 (self._geo_diff(self._point_list[0], path_seg_points[-1]) <= threshold):
@@ -101,18 +132,19 @@ class ModePath(object):
     def expand_mode_path(self):
         if self.is_multimodal:
             first_mode = Session.query(Vertex.mode_id).filter(
-                Vertex.vertex_id == self.vertex_id_list[0]).first()
+                Vertex.vertex_id == self.vertex_id_list[0]).first().mode_id
             mp = ModePath(first_mode, [self.vertex_id_list[0]])
             self.sub_mode_paths.append(mp)
             last_mode = first_mode
             for v in self.vertex_id_list[1:]:
-                vm = Session.query(Vertex.mode_id).filter(Vertex.vertex_id == v)
+                vm = Session.query(Vertex.mode_id).filter(
+                    Vertex.vertex_id == v).first().mode_id
                 if vm != last_mode:
                     mp = ModePath(vm, [v])
                     self.sub_mode_paths.append(mp)
                 else:
                     mp.vertex_id_list.append(v)
-                    last_mode = vm
+                last_mode = vm
 
 
 class RoutingResult(object):
@@ -140,6 +172,7 @@ class RoutingResult(object):
         #return reduce(lambda x, y: x.vertex_id_list + y.vertex_id_list, self.mode_paths)
         vertices = []
         for mp in self.mode_paths:
+            print str(mp.mode)
             vertices += mp.vertex_id_list
         return vertices
 
@@ -195,7 +228,7 @@ class RoutingResult(object):
                 mode_paths.append(mp)
             else:
                 mp.expand_mode_path()
-                mode_paths.append(mp.sub_mode_paths)
+                mode_paths += mp.sub_mode_paths
                 self.mode_paths = mode_paths
 
     def output_path_info(self, prefix=None):
@@ -205,9 +238,9 @@ class RoutingResult(object):
             print self.path_by_vertices
             print "paths expressed with raw link id list:"
             print self.path_by_links
-            print "paths expressed with point coord list in GeoJSON:"
+            print "paths expressed with point coordinate list:"
             print self.path_by_points
             for mp in self.mode_paths:
                 with open(str(prefix) + "_" + str(mp.mode) + '_path_seg.geojson', 'w') \
                     as mode_path_file:
-                    mode_path_file.write(json.dumps(mp.to_geojson))
+                    mode_path_file.write(json.dumps(mp.to_geojson()))
