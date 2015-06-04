@@ -56,8 +56,8 @@ docs/_build/
 *.swp
 *.un~
 
-# raw data
-dataparser/*.csv
+# data processing dir, the project has been moved to tumluliu/mmgraph-builder
+dataparser/
 *.txt
 
 # project temp dir
@@ -65,3 +65,6 @@ tmp/
 
 # real project config 
 config.json
+
+# routing results
+*.geojson
