@@ -55,7 +55,7 @@ class MultimodalRoutePlanner(object):
 
     def open_datasource(self, ds_type, ds_url):
         self.data_source_type = ds_type.upper()
-        if ds_type.upper() == "POSTGRESQL":
+        if ds_type.upper() in ["POSTGRESQL", "POSTGRES"]:
             ret_code = c_mmspa_lib.ConnectDB(ds_url)
             if ret_code != 0: raise Exception("[FATAL] Open datasource failed")
         elif ds_type.upper() == "PLAIN_TEXT":
@@ -63,7 +63,7 @@ class MultimodalRoutePlanner(object):
             # FIXME: here should return a status code
 
     def close_datasource(self):
-        if self.data_source_type == "POSTGRESQL":
+        if self.data_source_type in ["POSTGRESQL", "POSTGRES"]:
             c_mmspa_lib.DisconnectDB()
         elif self.data_source_type == "PLAIN_TEXT":
             self.graph_file.close()
