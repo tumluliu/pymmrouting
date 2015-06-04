@@ -1,5 +1,5 @@
 {
-    "sqlalchemy": {
+    "datasource": {
         "database": {
             "drivername": "postgres",
             "host":       "localhost",
