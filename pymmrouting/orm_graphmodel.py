@@ -2,10 +2,12 @@
 ORM definitions for mapping multimodal graph data stored in PostgreSQL database
 """
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Column, BigInteger, String
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.engine.url import URL
+from sqlalchemy.schema import PrimaryKeyConstraint
+from geoalchemy2 import Geometry
 from geoalchemy2.functions import ST_AsGeoJSON as st_asgeojson
 import json
 import settings
@@ -45,7 +47,7 @@ class CarParking(Base):
         act_admin  character varying(255),
         act_postal character varying(255),
         um_id      double precision,
-        the_geom   geometry,
+        geom   geometry,
     """
     __tablename__ = 'car_parkings'
     __table_args__ = {'autoload': True}
@@ -85,7 +87,7 @@ class ParkAndRide(Base):
         um_cat     character varying(255),
         um_type    integer,
         nvt_region character varying(255),
-        the_geom   geometry,
+        geom   geometry,
     """
     __tablename__ = 'park_and_rides'
     __table_args__ = {'autoload': True}
@@ -99,7 +101,7 @@ class SuburbanJunction(Base):
         y        double precision,
         nodeid   integer,
         valence  integer,
-        the_geom geometry,
+        geom geometry,
     """
     __tablename__ = 'suburban_junctions'
     __table_args__ = {'autoload': True}
@@ -127,7 +129,7 @@ class SuburbanLine(Base):
         overlapobj integer,
         snodesobj  integer,
         zerofeat   integer,
-        the_geom   geometry,
+        geom   geometry,
     """
     __tablename__ = 'suburban_lines'
     __table_args__ = {'autoload': True}
@@ -147,7 +149,7 @@ class SuburbanStation(Base):
         oba      integer,
         bfk      integer,
         type_id  integer,
-        the_geom geometry,
+        geom geometry,
     """
     __tablename__ = 'suburban_stations'
     __table_args__ = {'autoload': True}
@@ -161,7 +163,7 @@ class TramJuction(Base):
         y        double precision,
         nodeid   integer,
         valence  integer,
-        the_geom geometry,
+        geom geometry,
     """
     __tablename__ = 'tram_junctions'
     __table_args__ = {'autoload': True}
@@ -189,7 +191,7 @@ class TramLine(Base):
         overlapobj integer,
         snodesobj  integer,
         zerofeat   integer,
-        the_geom   geometry,
+        geom   geometry,
     """
     __tablename__ = 'tram_lines'
     __table_args__ = {'autoload': True}
@@ -209,7 +211,7 @@ class TramStation(Base):
         oba      integer,
         bfk      integer,
         type_id  integer,
-        the_geom geometry,
+        geom geometry,
     """
     __tablename__ = 'tram_stations'
     __table_args__ = {'autoload': True}
@@ -223,7 +225,7 @@ class UndergroundJunction(Base):
         y        double precision,
         nodeid   integer,
         valence  integer,
-        the_geom geometry,
+        geom geometry,
     """
     __tablename__ = 'underground_junctions'
     __table_args__ = {'autoload': True}
@@ -251,7 +253,7 @@ class UndergroundLine(Base):
         overlapobj integer,
         snodesobj  integer,
         zerofeat   integer,
-        the_geom   geometry,
+        geom   geometry,
     """
     __tablename__ = 'underground_lines'
     __table_args__ = {'autoload': True}
@@ -271,7 +273,7 @@ class UndergroundStation(Base):
         oba      integer,
         bfk      integer,
         type_id  integer,
-        the_geom geometry,
+        geom geometry,
     """
     __tablename__ = 'underground_stations'
     __table_args__ = {'autoload': True}
@@ -356,67 +358,188 @@ class Mode(Base):
     __table_args__ = {'autoload': True}
 
 
-class StreetLine(Base):
-    """ mapping of existing table munich_osm_line
+class OSMLine(Base):
+    """ mapping of existing table osm_line
     Columns:
-        id         integer NOT NULL,
-        um_id      double precision,
-        um_name    character varying(255),
-        um_type    integer,
-        matchtyp   character varying(255),
-        shopping   character varying(255),
-        link_id    double precision,
-        func_class character varying(255),
-        speed_cat  character varying(255),
-        divider    character varying(255),
-        dir_travel character varying(255),
-        ar_auto    character varying(255),
-        ar_pedest  character varying(255),
-        bridge     character varying(255),
-        tunnel     character varying(255),
-        l_postcode character varying(255),
-        r_postcode character varying(255),
-        cond_type  integer,
-        cond_val1  character varying(255),
-        cond_id    double precision,
-        man_linkid double precision,
-        seq_number integer,
-        ob         character varying(255),
-        oba        integer,
-        refb       character varying(255),
-        refa       character varying(255),
-        shape_leng double precision,
-        enabled    integer,
-        fnodeid    integer,
-        tnodeid    integer,
-        overlapobj integer,
-        snodesobj  integer,
-        zerofeat   integer,
-        the_geom   geometry
-    """
-    __tablename__ = 'street_lines'
-    __table_args__ = {'autoload': True}
+        gid                  integer,serial,primary key,
+        osm_id               bigint,
+        access               text,
+        "addr:housename"     text,
+        "addr:housenumber"   text,
+        "addr:interpolation" text,
+        admin_level          text,
+        aerialway            text,
+        aeroway              text,
+        amenity              text,
+        area                 text,
+        barrier              text,
+        bicycle              text,
+        brand                text,
+        bridge               text,
+        boundary             text,
+        building             text,
+        construction         text,
+        covered              text,
+        culvert              text,
+        cutting              text,
+        denomination         text,
+        disused              text,
+        embankment           text,
+        foot                 text,
+        "generator:source"   text,
+        harbour              text,
+        highway              text,
+        historic             text,
+        horse                text,
+        intermittent         text,
+        junction             text,
+        landuse              text,
+        layer                text,
+        leisure              text,
+        lock                 text,
+        man_made             text,
+        military             text,
+        motorcar             text,
+        name                 text,
+        "natural"            text,
+        office               text,
+        oneway               text,
+        operator             text,
+        place                text,
+        population           text,
+        power                text,
+        power_source         text,
+        public_transport     text,
+        railway              text,
+        ref                  text,
+        religion             text,
+        route                text,
+        service              text,
+        shop                 text,
+        sport                text,
+        surface              text,
+        toll                 text,
+        tourism              text,
+        "tower:type"         text,
+        tracktype            text,
+        tunnel               text,
+        water                text,
+        waterway             text,
+        wetland              text,
+        width                text,
+        wood                 text,
+        z_order              integer,
+        way_area             real,
+        way                  geometry(LineString,4326)
+        """
+    __tablename__ = 'osm_line'
+    osm_id = Column(BigInteger, primary_key=True)
+    amenity = Column(String)
+    highway = Column(String)
+    name = Column(String)
+    #oneway = Column(String)
+    way = Column(Geometry(geometry_type='LINESTRING', srid=4326))
+    #__table_args__ = (PrimaryKeyConstraint('gid', 'osm_id'), {'autoload':True})
+    #__mapper_args__ = {
+        #'include_properties' :['osm_id', 'amenity', 'highway', 'name', 'oneway',
+                               #'way']
+    #}
 
-
-class StreetJunction(Base):
-    """ mapping of street_junctions
+class OSMPoint(Base):
+    """ mapping of osm_point
     Columns:
-        id integer NOT NULL,
-        x double precision,
-        y double precision,
-        nodeid integer,
-        valence integer,
-        the_geom geometry,
-
+        gid                  integer,serial,primary key,
+        osm_id               bigint,
+        access               text,
+        "addr:housename"     text,
+        "addr:housenumber"   text,
+        "addr:interpolation" text,
+        admin_level          text,
+        aerialway            text,
+        aeroway              text,
+        amenity              text,
+        area                 text,
+        barrier              text,
+        bicycle              text,
+        brand                text,
+        bridge               text,
+        boundary             text,
+        building             text,
+        capital              text,
+        construction         text,
+        covered              text,
+        culvert              text,
+        cutting              text,
+        denomination         text,
+        disused              text,
+        ele                  text,
+        embankment           text,
+        foot                 text,
+        "generator:source"   text,
+        harbour              text,
+        highway              text,
+        historic             text,
+        horse                text,
+        intermittent         text,
+        junction             text,
+        landuse              text,
+        layer                text,
+        leisure              text,
+        lock                 text,
+        man_made             text,
+        military             text,
+        motorcar             text,
+        name                 text,
+        "natural"            text,
+        office               text,
+        oneway               text,
+        operator             text,
+        place                text,
+        poi                  text,
+        population           text,
+        power                text,
+        power_source         text,
+        public_transport     text,
+        railway              text,
+        ref                  text,
+        religion             text,
+        route                text,
+        service              text,
+        shop                 text,
+        sport                text,
+        surface              text,
+        toll                 text,
+        tourism              text,
+        "tower:type"         text,
+        tunnel               text,
+        water                text,
+        waterway             text,
+        wetland              text,
+        width                text,
+        wood                 text,
+        z_order              integer,
+        way                  geometry(Point,4326)
     NOTE:
         to find the nearest neighbor with this class, the right way should
         be like this:
         Session.query(StreetJunction).
-        order_by(StreetJunction.the_geom.distance_box('POINT(0 0)')).limit(10)
+        order_by(StreetJunction.way.distance_box('POINT(0 0)')).limit(10)
     """
-    __tablename__ = 'street_junctions'
+    __tablename__ = 'osm_point'
+    osm_id = Column(BigInteger, primary_key=True)
+    amenity = Column(String)
+    name = Column(String)
+    way = Column(Geometry(geometry_type='POINT', srid=4326))
+    #__table_args__ = (PrimaryKeyConstraint('gid'), {'autoload':True})
+    #__mapper_args__ = {'include_properties' :['osm_id', 'way']}
+
+class StreetLine(Base):
+    __tablename__ = 'street_lines'
     __table_args__ = {'autoload': True}
 
+class StreetJunction(Base):
+    __tablename__ = 'street_junctions'
+    __table_args__ = {'autoload': True}
 
 def get_waypoints(way_geom):
     geom_json = json.loads(Session.scalar(st_asgeojson(way_geom)))
@@ -425,6 +548,6 @@ def get_waypoints(way_geom):
         coord_list = geom_json['coordinates']
     elif geom_json['type'].upper() == 'MULTILINESTRING':
         coord_list = [j for i in geom_json['coordinates'] for j in i]
-    # print geom_json
-    # print geom_json['coordinates']
+    print geom_json
+    #print geom_json['coordinates']
     return coord_list
