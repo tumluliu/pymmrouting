@@ -18,7 +18,7 @@ import json
 parser = argparse.ArgumentParser()
 parser.add_argument("ROUTING_OPTIONS_FILE",
                     help="User-defined options about travelling")
-parser.add_argument("APP_CONFIG", default="config.json",
+parser.add_argument("-c", "--APP-CONFIG", default="config.json",
                     help="config for client application")
 args = parser.parse_args()
 ROUTING_OPTIONS_FILE = args.ROUTING_OPTIONS_FILE
