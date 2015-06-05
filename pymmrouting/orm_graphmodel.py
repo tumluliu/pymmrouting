@@ -50,7 +50,9 @@ class CarParking(Base):
         geom   geometry,
     """
     __tablename__ = 'car_parkings'
-    __table_args__ = {'autoload': True}
+    osm_id = Column(BigInteger, primary_key=True)
+    name = Column(String)
+    geom = Column(Geometry(geometry_type='POINT', srid=4326))
 
 
 class ParkAndRide(Base):
@@ -535,11 +537,16 @@ class OSMPoint(Base):
 
 class StreetLine(Base):
     __tablename__ = 'street_lines'
-    __table_args__ = {'autoload': True}
+    link_id = Column(BigInteger, primary_key=True)
+    osm_id = Column(BigInteger)
+    from_node = Column(BigInteger)
+    to_node = Column(BigInteger)
+    geom = Column(Geometry(geometry_type='LINESTRING', srid=4326))
 
 class StreetJunction(Base):
     __tablename__ = 'street_junctions'
-    __table_args__ = {'autoload': True}
+    osm_id = Column(BigInteger, primary_key=True)
+    geom = Column(Geometry(geometry_type='POINT', srid=4326))
 
 def get_waypoints(way_geom):
     geom_json = json.loads(Session.scalar(st_asgeojson(way_geom)))
@@ -548,6 +555,6 @@ def get_waypoints(way_geom):
         coord_list = geom_json['coordinates']
     elif geom_json['type'].upper() == 'MULTILINESTRING':
         coord_list = [j for i in geom_json['coordinates'] for j in i]
-    print geom_json
+    #print geom_json
     #print geom_json['coordinates']
     return coord_list
