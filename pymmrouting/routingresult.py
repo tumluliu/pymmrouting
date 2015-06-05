@@ -52,12 +52,12 @@ class ModePath(object):
     @property
     def link_id_list(self):
         for i, j in self._pairwise(self.vertex_id_list):
-            self._link_id_list.append(Session.query(Edge.raw_link_id).filter(
-                Edge.from_id == i, Edge.to_id == j).first().raw_link_id)
+            self._link_id_list.append(Session.query(Edge.link_id).filter(
+                Edge.from_id == i, Edge.to_id == j).first().link_id)
         return self._link_id_list
 
     def _get_way_points_between_vertices(self, u, v):
-        raw_link_id = Session.query(Edge.raw_link_id).filter(
+        link_id = Session.query(Edge.link_id).filter(
         Edge.from_id == u, Edge.to_id == v).first()
         #print "mode of the current path: " + str(self.mode)
         #print "fnodeid: " + str(raw_fnodeid)
@@ -72,21 +72,25 @@ class ModePath(object):
         coord_list = []
         if self.mode in [MODES['private_car'], MODES['foot']]:
             return get_waypoints(Session.query(StreetLine.geom).filter(
-                StreetLine.osm_id == raw_link_id).first().geom)
+                StreetLine.link_id == link_id).first().geom)
         elif self.mode == MODES['underground']:
+            raw_fnodeid = u % 10000000 - u % 1000000 + u % 100000
+            raw_tnodeid = v % 10000000 - u % 1000000 + u % 100000
             sql = "SELECT ST_AsGeoJSON(underground_lines.geom, 4326) AS line_geom \
                 FROM underground_lines WHERE (fnodeid = :fnode AND tnodeid = :tnode) \
                 OR (fnodeid = :tnode AND tnodeid = :fnode) LIMIT 1;"
         elif self.mode == MODES['suburban']:
+            raw_fnodeid = u % 100000000
+            raw_tnodeid = v % 100000000
             sql = "SELECT ST_AsGeoJSON(suburban_lines.geom, 4326) AS line_geom \
                 FROM suburban_lines WHERE (fnodeid = :fnode AND tnodeid = :tnode) \
                 OR (fnodeid = :tnode AND tnodeid = :fnode) LIMIT 1;"
         elif self.mode == MODES['tram']:
+            raw_fnodeid = u % 100000000
+            raw_tnodeid = v % 100000000
             sql = "SELECT ST_AsGeoJSON(tram_lines.geom, 4326) AS line_geom \
                 FROM tram_lines WHERE (fnodeid = :fnode AND tnodeid = :tnode) \
                 OR (fnodeid = :tnode AND tnodeid = :fnode) LIMIT 1;"
-        raw_fnodeid = u % 100000000
-        raw_tnodeid = v % 100000000
         linestring = Session.execute(sql, {'fnode': raw_fnodeid,
                                            'tnode': raw_tnodeid}).fetchall()
         coords = json.loads(linestring[0][0])['coordinates']
@@ -112,6 +116,7 @@ class ModePath(object):
 
     @property
     def point_list(self):
+        self._point_list = []
         for index, (i, j) in enumerate(self._pairwise(self.vertex_id_list)):
             way_points = self._get_way_points_between_vertices(i, j)
             self._concat_seg_points(index, way_points)
@@ -172,7 +177,7 @@ class RoutingResult(object):
         #return reduce(lambda x, y: x.vertex_id_list + y.vertex_id_list, self.mode_paths)
         vertices = []
         for mp in self.mode_paths:
-            print str(mp.mode)
+            #print str(mp.mode)
             vertices += mp.vertex_id_list
         return vertices
 
