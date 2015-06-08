@@ -1,18 +1,19 @@
 """ RoutingResult class is a part of pymmrouting module """
 
 from ctypes import POINTER, Structure, c_longlong, c_int
-from pymmrouting.orm_graphmodel import Mode, Session, Vertex, Edge, \
-    StreetLine, get_waypoints
 from itertools import tee, izip
+from .orm_graphmodel import Mode, Session, Vertex, Edge, \
+    StreetLine, get_waypoints
+from os import path
 import json
 import logging
 
-logging.basicConfig()
-logging.getLogger('sqlalchemy.engine').setLevel(logging.WARN)
+logger = logging.getLogger(__name__)
 
 MODES         = {str(m_name): m_id
                  for m_name, m_id in
                  Session.query(Mode.mode_name, Mode.mode_id)}
+TMP_DIR = "tmp/"
 
 class RawPath(Structure):
     _fields_ = [("vertex_list", POINTER(c_longlong)),
@@ -59,9 +60,6 @@ class ModePath(object):
     def _get_way_points_between_vertices(self, u, v):
         link_id = Session.query(Edge.link_id).filter(
         Edge.from_id == u, Edge.to_id == v).first()
-        #print "mode of the current path: " + str(self.mode)
-        #print "fnodeid: " + str(raw_fnodeid)
-        #print "tnodeid: " + str(raw_tnodeid)
         # FIXME: It is not reliable to find the line feature by
         # fnodeid/tnodeid pair or um_id because both of them are not
         # unique. There is actually no unique id field available in UM
@@ -95,8 +93,7 @@ class ModePath(object):
                                            'tnode': raw_tnodeid}).fetchall()
         coords = json.loads(linestring[0][0])['coordinates']
         coord_list = [j for i in coords for j in i]
-        print "coordinate list between " + str(u) + " and " + str(v) + ":"
-        print coord_list
+        logger.debug("Coordinate list between %s and %s: %s", u, v, coord_list)
         return coord_list
 
     def _geo_diff(self, p1, p2):
@@ -177,7 +174,6 @@ class RoutingResult(object):
         #return reduce(lambda x, y: x.vertex_id_list + y.vertex_id_list, self.mode_paths)
         vertices = []
         for mp in self.mode_paths:
-            #print str(mp.mode)
             vertices += mp.vertex_id_list
         return vertices
 
@@ -239,13 +235,14 @@ class RoutingResult(object):
     def output_path_info(self, prefix=None):
         if prefix is None:
             prefix = '-'.join(self.description.split())
-            print "paths expressed with vertex id list:"
-            print self.path_by_vertices
-            print "paths expressed with raw link id list:"
-            print self.path_by_links
-            print "paths expressed with point coordinate list:"
-            print self.path_by_points
-            for mp in self.mode_paths:
-                with open(str(prefix) + "_" + str(mp.mode) + '_path_seg.geojson', 'w') \
-                    as mode_path_file:
+            logger.debug("paths expressed with vertex id list: %s",
+                         self.path_by_vertices)
+            logger.debug("paths expressed with raw link id list: %s",
+                         self.path_by_links)
+            logger.debug("paths expressed with point coordinate list: %s",
+                         self.path_by_points)
+            for i, mp in enumerate(self.mode_paths):
+                path_seg_file = path.join(TMP_DIR, str(i) + "." + str(prefix) + \
+                                        "_" + str(mp.mode) + '_path_seg.geojson')
+                with open(path_seg_file, 'w') as mode_path_file:
                     mode_path_file.write(json.dumps(mp.to_geojson()))
