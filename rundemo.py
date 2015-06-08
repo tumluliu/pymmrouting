@@ -54,47 +54,41 @@ inferer.load_routing_options_from_file(ROUTING_OPTIONS_FILE)
 # inference engine with the routing options as inputs
 routing_plans = inferer.generate_routing_plan()
 print colored("done!", "green")
-
 route_planner = MultimodalRoutePlanner()
 # A multimodal network data model is necessary for multimodal path finding. It
 # loads network dataset from external sources, e.g. PostgreSQL database, plain
-# text file, etc.
-print "Connecting to multimodal data source... ",
-# In this sample, the multimodal graph data set is stored in PostgreSQL
-# database
-
-with (open(CONFIG_FILE, 'r')) as conf_file:
-    DATABASE = json.load(conf_file)["datasource"]["database"]
-ds_conn_str = "dbname = '" + str(DATABASE['database']) + \
-    "' user = '" + str(DATABASE['username']) + \
-    "' password = '" + str(DATABASE['password']) + "'"
-route_planner.open_datasource(DATABASE['drivername'], ds_conn_str)
-print colored("done!", "green")
-# A multimodal network is assembled on-the-fly according to a concrete routing
-# plan
+# text file, etc. A multimodal network is assembled on-the-fly according to a
+# concrete routing plan
 print "Routing from " + \
     colored(str(routing_options['source']['value']['x']) + ',' +
             str(routing_options['source']['value']['y']), 'red') + " to " + \
     colored(str(routing_options['target']['value']['x']) + ',' +
             str(routing_options['target']['value']['y']), 'red')
-print "Feasible routing plans are: "
-for p in routing_plans:
-    print str(routing_plans.index(p)+1) + ". " + p.description
 rough_results = route_planner.batch_find_path(routing_plans)
 final_results = route_planner.refine_results(rough_results)
 print colored("Finish doing routing plan!", "green")
 print "Final refined routing results are: "
-for r in final_results:
-    print "== " + str(final_results.index(r)+1) + ". " + r.description + " =="
+for i, r in enumerate(final_results["result list"]):
+    print "== " + str(i + 1) + ". " + r["description"] + " =="
     print "Total distance: ",
-    print colored(str(r.length), "red"),
+    print colored(str(r["length"]), "red"),
     print " meters"
     print "Total time (estimated): ",
-    print colored(str(datetime.timedelta(minutes=r.time)), "red")
+    print colored(str(datetime.timedelta(minutes=float(r["time"]))), "red")
     print "Total walking distance: ",
-    print colored(str(r.walking_length), "red"),
+    print colored(str(r["walking length"]), "red"),
     print " meters"
     print "Total walking time (estimated): ",
-    print colored(str(datetime.timedelta(minutes=r.walking_time)), "red")
-    r.output_path_info()
-route_planner.close_datasource()
+    print colored(str(datetime.timedelta(minutes=float(r["walking time"]))), "red")
+    print "Multimodal path: "
+    for p in r["paths"]:
+        print colored((p["mode"] + ": "), "red")
+        print p["geojson"]
+    print "Switch Points along the path: "
+    for sp in r["switch points"]:
+        print colored((sp["type"] + ": "), "blue")
+        print sp["geojson"]
+        print sp["name"]
+with (open("multimodal_routing_results.json", 'w')) as result_file:
+    result_file.write(json.dumps(final_results))
+route_planner.cleanup()
