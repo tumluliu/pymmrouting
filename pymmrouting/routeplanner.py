@@ -7,6 +7,7 @@ from ctypes import CDLL, POINTER, \
     c_double, c_char_p, c_int, c_void_p, c_longlong
 from .routingresult import RoutingResult, RawMultimodalPath, ModePath
 from .orm_graphmodel import Session, Mode, SwitchType
+from .settings import PG_DB_CONF
 import time
 import logging
 
@@ -26,9 +27,7 @@ class MultimodalRoutePlanner(object):
 
     """ Multimodal optimal path planner """
 
-    def __init__(self):
-        self.data_source_type = ""
-        self.graph_file = None
+    def __init__(self, datasource_type='POSTGRESQL'):
         # For strict type checking, the arguments and returning types are
         # explictly listed here
         # TODO: mapping c_mmspa_lib interface function to python-style methods
@@ -52,6 +51,18 @@ class MultimodalRoutePlanner(object):
         c_mmspa_lib.GetFinalCost.argtypes = [c_longlong, c_char_p]
         c_mmspa_lib.GetFinalCost.restype = c_double
         c_mmspa_lib.DisposePaths.argtypes = [POINTER(RawMultimodalPath)]
+        pg_conn_str = \
+            "dbname = '" + PG_DB_CONF['database'] + "' " + \
+            "user = '" + PG_DB_CONF['username'] + "' " + \
+            "password = '" + PG_DB_CONF['password'] + "'"
+        self.open_datasource(datasource_type, pg_conn_str)
+        self.graph_file = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.cleanup()
 
     def open_datasource(self, ds_type, ds_url):
         self.data_source_type = ds_type.upper()
@@ -62,7 +73,7 @@ class MultimodalRoutePlanner(object):
             self.graph_file = open(ds_url)
             # FIXME: here should return a status code
 
-    def close_datasource(self):
+    def cleanup(self):
         if self.data_source_type in ["POSTGRESQL", "POSTGRES"]:
             c_mmspa_lib.DisconnectDB()
         elif self.data_source_type == "PLAIN_TEXT":
@@ -112,16 +123,16 @@ class MultimodalRoutePlanner(object):
         c_mmspa_lib.Dispose()
 
     def batch_find_path(self, plans):
-        routing_results = []
+        result_dict = {"result list": []}
         for p in plans:
-            routing_results.append(self.find_path(p))
-        return routing_results
+            result_dict["result list"] += self.find_path(p)["result list"]
+        return result_dict
 
-    def refine_results(self, result_list):
+    def refine_results(self, results):
         # TODO Deduplicate the routing results
         # TODO Remove (set is_existent = false) the path containing pure
         # walking path in public_transportation mode
-        return result_list
+        return results
 
     def find_path(self, plan):
         logger.info("Start path finding...")
@@ -138,17 +149,17 @@ class MultimodalRoutePlanner(object):
         c_mmspa_lib.MultimodalTwoQ(c_longlong(plan.source))
         t2 = time.time()
         logger.info("Finish calculating multimodal paths, time consumed: %s seconds", (t2 - t1))
-        final_path = c_mmspa_lib.GetFinalPath(
-            c_longlong(
-                plan.source), c_longlong(
-                plan.target))
+        final_path = c_mmspa_lib.GetFinalPath(c_longlong(plan.source),
+                                              c_longlong(plan.target))
         routing_result = self._construct_result(plan, final_path)
         if routing_result.is_existent is True:
             c_mmspa_lib.DisposePaths(final_path)
         self.disassemble_networks()
-        return routing_result
+        return {"result list": [routing_result.to_dict()]}
 
     def _construct_result(self, plan, final_path):
+        """ Construct a bundle of routing plan and result
+        """
         result = RoutingResult()
         result.planned_mode_list = plan.mode_list
         result.description = plan.description
@@ -165,7 +176,8 @@ class MultimodalRoutePlanner(object):
                 mp = ModePath(m)
                 logger.debug("Mode path vertex id list before construction: %s",
                              mp.vertex_id_list)
-                for i in range(final_path[m_index].path_segments[0].vertex_list_length):
+                for i in range(
+                    final_path[m_index].path_segments[0].vertex_list_length):
                     v = final_path[m_index].path_segments[0].vertex_list[i]
                     mp.vertex_id_list.append(v)
                 m_index += 1
