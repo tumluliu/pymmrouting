@@ -5,12 +5,12 @@
 
 from ctypes import CDLL, POINTER, \
     c_double, c_char_p, c_int, c_void_p, c_longlong
-from pymmrouting.routingresult import RoutingResult, RawMultimodalPath, ModePath
-from pymmrouting.orm_graphmodel import Edge, StreetLine, StreetJunction,\
-    Session, get_waypoints, Mode, SwitchType
-from termcolor import colored
+from .routingresult import RoutingResult, RawMultimodalPath, ModePath
+from .orm_graphmodel import Session, Mode, SwitchType
 import time
+import logging
 
+logger = logging.getLogger(__name__)
 
 c_mmspa_lib = CDLL('libmmspa4pg.dylib')
 # Read modes and switch_types from database instead of hard coding it here
@@ -69,21 +69,21 @@ class MultimodalRoutePlanner(object):
             self.graph_file.close()
 
     def assemble_networks(self, plan):
-        # print "I am gonna create a routing plan... "
+        logger.info("Create a routing plan. ")
         c_mmspa_lib.CreateRoutingPlan(
             len(plan.mode_list), len(plan.public_transit_set))
         # set mode list
 
-        # print "I am gonna set the mode list items... "
-        # print "most list is: " + str(plan.mode_list)
+        logger.info("Set the mode list items. ")
+        logger.debug("Mode list is: %s", plan.mode_list)
         i = 0
         for mode in plan.mode_list:
             c_mmspa_lib.SetModeListItem(i, mode)
             i += 1
 
         # set switch conditions and constraints if the plan is multimodal
-        # print "I am gonna set the switch conditions and constraints if there is... "
         if len(plan.mode_list) > 1:
+            logger.info("Set the switch conditions and constraints... ")
             for i in range(len(plan.mode_list) - 1):
                 c_mmspa_lib.SetSwitchConditionListItem(i,
                     plan.switch_condition_list[i])
@@ -97,14 +97,14 @@ class MultimodalRoutePlanner(object):
                 c_mmspa_lib.SetPublicTransitModeSetItem(i, mode)
                 i += 1
 
-        # print "I am gonna set the target constraints if there is... "
-        # print "target constraints are: " + str(plan.target_constraint)
+        logger.info("Set the target constraints if there is... ")
+        logger.debug("Target constraints are: %s", plan.target_constraint)
         c_mmspa_lib.SetTargetConstraint(plan.target_constraint)
-        # print "I am gonna set the const factor ... "
-        # print "cost factor is: " + str(plan.cost_factor)
+        logger.info("Set the const factor ... ")
+        logger.debug("Cost factor is: %s", plan.cost_factor)
         c_mmspa_lib.SetCostFactor(plan.cost_factor)
 
-        print "start parsing multimodal networks..."
+        logger.info("Start parsing multimodal networks...")
         if c_mmspa_lib.Parse() != 0:
             raise Exception("Assembling multimodal networks failed!")
 
@@ -124,25 +124,20 @@ class MultimodalRoutePlanner(object):
         return result_list
 
     def find_path(self, plan):
-        print "I am gonna find the path!!!!!!!!!!!!!"
-        print "source: " + str(plan.source)
-        print "target: " + str(plan.target)
-        print "Loading multimodal transportation networks ... ",
+        logger.info("Start path finding...")
+        logger.debug("source: %s", plan.source)
+        logger.debug("target: %s", plan.target)
+        logger.info("Loading multimodal transportation networks ... ")
         t1 = time.time()
         self.assemble_networks(plan)
         t2 = time.time()
-        print colored("done!", "green")
-        print "Time consumed: ",
-        print colored(str(t2 - t1), "red"),
-        print " seconds"
-        print "Start calculating multimodal paths ... ",
+        logger.info("done!")
+        logger.info("Finish assembling multimodal networks, time consumed: %s seconds", (t2 - t1))
+        logger.info("Calculating multimodal paths ... ")
         t1 = time.time()
         c_mmspa_lib.MultimodalTwoQ(c_longlong(plan.source))
         t2 = time.time()
-        print colored("done!", "green")
-        print "Calculation time: ",
-        print colored(str(t2 - t1), "red"),
-        print " seconds"
+        logger.info("Finish calculating multimodal paths, time consumed: %s seconds", (t2 - t1))
         final_path = c_mmspa_lib.GetFinalPath(
             c_longlong(
                 plan.source), c_longlong(
@@ -166,35 +161,22 @@ class MultimodalRoutePlanner(object):
             result.is_existent = True
             m_index = 0
             for m in plan.mode_list:
-                #print "Constructing mode " + str(m)
+                logger.info("Constructing path for mode %s", m)
                 mp = ModePath(m)
-                #print "mode path vertex id list before construction: "
-                #print mp.vertex_id_list
+                logger.debug("Mode path vertex id list before construction: %s",
+                             mp.vertex_id_list)
                 for i in range(final_path[m_index].path_segments[0].vertex_list_length):
                     v = final_path[m_index].path_segments[0].vertex_list[i]
-                    #print "appending vertex " + str(v) + " into mode path"
                     mp.vertex_id_list.append(v)
                 m_index += 1
-                #print "vertex id list for mode " + str(m)
-                #print mp.vertex_id_list
+                logger.debug("vertex id list for mode %s: %s",
+                             m, mp.vertex_id_list)
                 result.mode_paths.append(mp)
-
-            #print "mode path info in result: "
-            #print "number of mode_path: " + str(len(result.mode_paths))
-            #for mp in result.mode_paths:
-                #print "mode: " + str(mp.mode)
-                #print "vertex id list: "
-                #print mp.vertex_id_list
-                #print "edge id list: "
-                #print mp.edge_id_list
-                #print "link id list: "
-                #print mp.link_id_list
-
-            #print "vertex id list before unfolding: "
-            #print result.path_by_vertices
+            logger.debug("vertex id list before unfolding: %s",
+                         result.path_by_vertices)
             result.unfold_sub_paths()
-            #print "vertex id list after unfolding: "
-            #print result.path_by_vertices
+            logger.debug("vertex id list after unfolding: %s",
+                         result.path_by_vertices)
             result.length = c_mmspa_lib.GetFinalCost(
                 c_longlong(plan.target), 'distance')
             result.time = c_mmspa_lib.GetFinalCost(
