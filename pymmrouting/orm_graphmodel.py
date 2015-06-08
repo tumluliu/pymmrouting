@@ -1,16 +1,19 @@
 """
 ORM definitions for mapping multimodal graph data stored in PostgreSQL database
+
 """
 
 from sqlalchemy import create_engine, Column, BigInteger, String
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.engine.url import URL
-from sqlalchemy.schema import PrimaryKeyConstraint
 from geoalchemy2 import Geometry
 from geoalchemy2.functions import ST_AsGeoJSON as st_asgeojson
+from . import settings
 import json
-import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 engine = create_engine(URL(**settings.DATABASE))
 Base = declarative_base(bind=engine)
@@ -555,6 +558,5 @@ def get_waypoints(way_geom):
         coord_list = geom_json['coordinates']
     elif geom_json['type'].upper() == 'MULTILINESTRING':
         coord_list = [j for i in geom_json['coordinates'] for j in i]
-    #print geom_json
-    #print geom_json['coordinates']
+        logger.debug("Get way points in GeoJSON: %s", geom_json)
     return coord_list
