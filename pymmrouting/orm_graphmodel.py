@@ -9,13 +9,13 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.engine.url import URL
 from geoalchemy2 import Geometry
 from geoalchemy2.functions import ST_AsGeoJSON as st_asgeojson
-from . import settings
+from .settings import PG_DB_CONF
 import json
 import logging
 
 logger = logging.getLogger(__name__)
 
-engine = create_engine(URL(**settings.DATABASE))
+engine = create_engine(URL(**PG_DB_CONF))
 Base = declarative_base(bind=engine)
 Session = scoped_session(sessionmaker(engine))
 
@@ -219,6 +219,11 @@ class TramStation(Base):
         geom geometry,
     """
     __tablename__ = 'tram_stations'
+    __table_args__ = {'autoload': True}
+
+
+class UndergroundPlatform(Base):
+    __tablename__ = 'underground_platforms'
     __table_args__ = {'autoload': True}
 
 
