@@ -2,20 +2,12 @@
 Infer feasible routing plans according to user preferences
 """
 
-import json
-# from ctypes import *
-from pymmrouting.datamodel import VERTEX_VALIDATION_CHECKER
-from pymmrouting.orm_graphmodel import SwitchType, Mode, Session, \
-    Vertex, StreetJunction
+from .datamodel import VERTEX_VALIDATION_CHECKER
+from .orm_graphmodel import SwitchType, StreetJunction, Mode, Session, Vertex
 import logging
+import json
 
-logger = logging.getLogger('Inference Engine')
-logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+logger = logging.getLogger(__name__)
 
 INTERNAL_SRID = 4326
 # Read modes and switch_types from database instead of hard coding it here
@@ -466,9 +458,7 @@ class RoutingPlanInferer(object):
                 st_pairs = self._find_valid_source_target_pairs(
                     candidate_sources, candidate_targets,
                     [MODES['public_transportation']], public_modes)
-                print st_pairs
                 for st in st_pairs:
-                    print st
                     public_plan = RoutingPlan(
                         'Walking and taking public transit',
                         st['source'], st['target'],
