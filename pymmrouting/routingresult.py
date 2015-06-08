@@ -2,17 +2,34 @@
 
 from ctypes import POINTER, Structure, c_longlong, c_int
 from itertools import tee, izip
-from .orm_graphmodel import Mode, Session, Vertex, Edge, \
-    StreetLine, get_waypoints
+from geoalchemy2.functions import ST_AsGeoJSON as st_asgeojson
+from .orm_graphmodel import Mode, Session, Vertex, Edge, StreetLine, \
+    CarParking, StreetJunction, ParkAndRide, UndergroundPlatform, \
+    SuburbanStation, TramStation, get_waypoints, SwitchPoint, SwitchType
 from os import path
 import json
 import logging
 
 logger = logging.getLogger(__name__)
 
-MODES         = {str(m_name): m_id
-                 for m_name, m_id in
-                 Session.query(Mode.mode_name, Mode.mode_id)}
+MODES = {
+    str(m_name): m_id
+    for m_name, m_id in
+    Session.query(Mode.mode_name, Mode.mode_id)
+}
+INV_MODES = {
+    m_id: str(m_name)
+    for m_name, m_id in
+    Session.query(Mode.mode_name, Mode.mode_id)
+}
+PUBLIC_TRANSIT_MODES = [MODES['underground'], MODES['suburban'], MODES['tram']]
+SWITCH_TYPES = {
+    t_name: t_id
+    for t_name, t_id in
+    Session.query(SwitchType.type_name, SwitchType.type_id)
+}
+# TODO: This mapping should not be place here in the source code. It should be
+# somewhere else in the persistant container like database
 TMP_DIR = "tmp/"
 
 class RawPath(Structure):
@@ -154,19 +171,19 @@ class RoutingResult(object):
     """ Store the multimodal routing results """
 
     def __init__(self):
-        self.is_existent              = False
-        self.planned_mode_list        = []
-        self.unfolded_mode_list       = []
-        self.mode_paths               = []
-        self.switch_type_list         = []
-        self.planned_switch_type_list = []
-        self.switch_point_list        = []
-        self.switch_point_name_list   = []
-        self.description              = ''
-        self.length                   = 0.0
-        self.time                     = 0.0
-        self.walking_time             = 0.0
-        self.walking_length           = 0.0
+        self.is_existent               = False
+        self.planned_mode_list         = []
+        self.unfolded_mode_list        = []
+        self.mode_paths                = []
+        self.planned_switch_type_list  = []
+        self.unfolded_switch_type_list = []
+        self.switch_point_list         = []
+        self.switch_point_tags_list    = []
+        self.description               = ''
+        self.length                    = 0.0
+        self.time                      = 0.0
+        self.walking_time              = 0.0
+        self.walking_length            = 0.0
 
     @property
     def path_by_vertices(self):
@@ -204,23 +221,99 @@ class RoutingResult(object):
             points += mp.point_list
         return points
 
-    # TODO: The following calculating can be done when those attributes in each
-    # mode graph is able to given by mmspa lib
-    #@property
-    #def length(self):
-        #return sum(map(lambda x: x.length, self.mode_paths))
+    @property
+    def switch_points(self):
+        sp_list = []
+        if len(self.mode_paths) < 2:
+            return []
+        from_vertex_id = self.mode_paths[0].vertex_id_list[-1]
+        from_mode = self.mode_paths[0].mode
+        for i, mp in enumerate(self.mode_paths[1:]):
+            to_mode = mp.mode
+            to_vertex_id = mp.vertex_id_list[0]
+            if (set([from_mode, to_mode]).issubset(
+                set(PUBLIC_TRANSIT_MODES + [MODES['foot']]))):
+                type_id = Session.query(SwitchPoint.type_id).filter(
+                    SwitchPoint.from_vertex_id == from_vertex_id,
+                    SwitchPoint.to_vertex_id == to_vertex_id,
+                    SwitchPoint.from_mode_id == from_mode,
+                    SwitchPoint.to_mode_id == to_mode).first().type_id
+            else:
+                type_id = self.planned_switch_type_list[i]
+            ref_poi_id = Session.query(SwitchPoint.ref_poi_id).filter(
+                SwitchPoint.from_vertex_id == from_vertex_id,
+                SwitchPoint.to_vertex_id == to_vertex_id,
+                SwitchPoint.from_mode_id == from_mode,
+                SwitchPoint.to_mode_id == to_mode,
+                SwitchPoint.type_id == type_id).first().ref_poi_id
+            sp_list.append(self._get_switch_point_poi_info(from_mode, to_mode,
+                                                           type_id, ref_poi_id))
+            from_mode = to_mode
+            from_vertex_id = mp.vertex_id_list[-1]
+        return sp_list
 
-    #@property
-    #def time(self):
-        #return sum(map(lambda x: x.time, self.mode_paths))
-
-    #@property
-    #def walking_time(self):
-        #return sum(map(lambda x: x.walking_time, self.mode_paths))
-
-    #@property
-    #def walking_length(self):
-        #return sum(map(lambda x: x.walking_length, self.mode_paths))
+    def _get_switch_point_poi_info(self, from_mode, to_mode,
+                                   switch_type_id, ref_poi_id):
+        logger.info("Find switch point between %s and %s, with type %s and poi id %s",
+                    from_mode, to_mode, switch_type_id, ref_poi_id)
+        if switch_type_id == SWITCH_TYPES['car_parking']:
+            logger.info("Find switch point around car parking lots")
+            poi = Session.query(CarParking).filter(
+                CarParking.osm_id == ref_poi_id).first()
+            sp_info = {"type": "car_parking",
+                       "name": poi.name,
+                       "geojson": None}
+        elif switch_type_id == SWITCH_TYPES['geo_connection']:
+            logger.info("Find switch point around geo connections in street network")
+            poi = Session.query(StreetJunction).filter(
+                StreetJunction.osm_id == ref_poi_id).first()
+            sp_info = {"type": "geo_connection",
+                       "name": "",
+                       "geojson": None}
+        elif switch_type_id == SWITCH_TYPES['park_and_ride']:
+            logger.info("Find switch point around park and ride lots")
+            poi = Session.query(ParkAndRide).filter(
+                ParkAndRide.poi_id == ref_poi_id).first()
+            sp_info = {"type": "park_and_ride",
+                       "name": poi.um_name,
+                       "geojson": None}
+        elif (switch_type_id == SWITCH_TYPES['underground_station']) or \
+            (switch_type_id == SWITCH_TYPES['kiss_and_ride'] and \
+             to_mode == MODES['underground']):
+            logger.info("Find switch point around underground platforms ")
+            poi = Session.query(UndergroundPlatform).filter(
+                UndergroundPlatform.platformid == ref_poi_id).first()
+            sp_info = {"type": "underground_station",
+                       "name": poi.station,
+                       "geojson": None}
+            logger.debug("Found poi: %s", poi)
+        elif (switch_type_id == SWITCH_TYPES['suburban_station']) or \
+            (switch_type_id == SWITCH_TYPES['kiss_and_ride'] and \
+             to_mode == MODES['suburban']):
+            logger.info("Find switch point around suburban stations ")
+            poi = Session.query(SuburbanStation).filter(
+                SuburbanStation.type_id == ref_poi_id).first()
+            sp_info = {"type": "suburban_station",
+                       "name": poi.um_name,
+                       "geojson": None}
+        elif (switch_type_id == SWITCH_TYPES['tram_station']) or \
+            (switch_type_id == SWITCH_TYPES['kiss_and_ride'] and \
+             to_mode == MODES['tram']):
+            logger.info("Find switch point around tram stations ")
+            poi = Session.query(TramStation).filter(
+                TramStation.type_id == ref_poi_id).first()
+            sp_info = {"type": "tram_station",
+                       "name": poi.um_name,
+                       "geojson": None}
+            logger.debug("Found poi: %s", poi)
+        else:
+            logger.info("No matching switch point poi condition!")
+            poi = None
+            sp_info = {}
+        if (not poi is None):
+            geojson = json.loads(Session.scalar(st_asgeojson(poi.geom)))
+            sp_info["geojson"] = geojson
+        return sp_info
 
     def unfold_sub_paths(self):
         mode_paths = []
@@ -231,6 +324,23 @@ class RoutingResult(object):
                 mp.expand_mode_path()
                 mode_paths += mp.sub_mode_paths
                 self.mode_paths = mode_paths
+        self.unfolded_mode_list = [mp.mode for mp in self.mode_paths]
+
+    def to_json(self):
+        return json.dumps(self.to_dict())
+
+    def to_dict(self):
+        rd                   = {}
+        rd["is existent"]    = self.is_existent
+        rd["description"]    = self.description
+        rd["length"]         = self.length
+        rd["time"]           = self.time
+        rd["walking time"]   = self.walking_time
+        rd["walking length"] = self.walking_length
+        rd["switch points"]  = self.switch_points
+        rd["paths"]          = [{"mode": INV_MODES[mp.mode], "geojson": mp.to_geojson()}
+                                for mp in self.mode_paths]
+        return rd
 
     def output_path_info(self, prefix=None):
         if prefix is None:
