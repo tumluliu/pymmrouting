@@ -14,6 +14,23 @@ from termcolor import colored
 import datetime
 import argparse
 import json
+import logging.config
+import os
+
+LOGGING_CONF_FILE = 'logging.json'
+DEFAULT_LOGGING_LVL = logging.INFO
+path = LOGGING_CONF_FILE
+value = os.getenv('LOG_CFG', None)
+if value:
+    path = value
+if os.path.exists(path):
+    with open(path, 'rt') as f:
+        config = json.load(f)
+    logging.config.dictConfig(config)
+else:
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("ROUTING_OPTIONS_FILE",
