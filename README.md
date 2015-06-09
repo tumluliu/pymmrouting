@@ -13,15 +13,15 @@ The detailed platform information of all the U-bahn stations in Munich is collec
 A sample code snippet of calculating multimodal paths:
 
 ```python
-from pymmrouting.routeplanner import MultimodalRoutePlanner
 from pymmrouting.inferenceengine import RoutingPlanInferer
+from pymmrouting.routeplanner import MultimodalRoutePlanner
 
-inferer = inferenceengine.RoutingPlanInferer()
+inferer = RoutingPlanInferer()
 inferer.load_routing_options('./sample-options/routing_options_driving_and_taking_public_transit.json')
-routing_plans = inferer.generate_routing_plan()
-route_planner = MultimodalRoutePlanner()
-results = route_planner.batch_find_path(routing_plans)
-route_planner.cleanup()
+plans = inferer.generate_routing_plan()
+planner = MultimodalRoutePlanner()
+results = planner.batch_find_path(plans)
+planner.cleanup()
 ```
 
 And all the possible multimodal routing results including multimodal paths and switch points are stored in `results` which is a dict variable and can be serialized into a JSON format file.
