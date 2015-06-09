@@ -261,21 +261,21 @@ class RoutingResult(object):
             poi = Session.query(CarParking).filter(
                 CarParking.osm_id == ref_poi_id).first()
             sp_info = {"type": "car_parking",
-                       "name": poi.name,
+                       "tags": {"name": poi.name},
                        "geojson": None}
         elif switch_type_id == SWITCH_TYPES['geo_connection']:
             logger.info("Find switch point around geo connections in street network")
             poi = Session.query(StreetJunction).filter(
                 StreetJunction.osm_id == ref_poi_id).first()
             sp_info = {"type": "geo_connection",
-                       "name": "",
+                       "tags": {"name": ""},
                        "geojson": None}
         elif switch_type_id == SWITCH_TYPES['park_and_ride']:
             logger.info("Find switch point around park and ride lots")
             poi = Session.query(ParkAndRide).filter(
                 ParkAndRide.poi_id == ref_poi_id).first()
             sp_info = {"type": "park_and_ride",
-                       "name": poi.um_name,
+                       "tags": {"name": poi.um_name},
                        "geojson": None}
         elif (switch_type_id == SWITCH_TYPES['underground_station']) or \
             (switch_type_id == SWITCH_TYPES['kiss_and_ride'] and \
@@ -284,7 +284,9 @@ class RoutingResult(object):
             poi = Session.query(UndergroundPlatform).filter(
                 UndergroundPlatform.platformid == ref_poi_id).first()
             sp_info = {"type": "underground_station",
-                       "name": poi.station,
+                       "tags": {"name": poi.station,
+                                "line": poi.line_name,
+                                "platform": poi.pf_name},
                        "geojson": None}
             logger.debug("Found poi: %s", poi)
         elif (switch_type_id == SWITCH_TYPES['suburban_station']) or \
@@ -294,7 +296,7 @@ class RoutingResult(object):
             poi = Session.query(SuburbanStation).filter(
                 SuburbanStation.type_id == ref_poi_id).first()
             sp_info = {"type": "suburban_station",
-                       "name": poi.um_name,
+                       "tags": {"name": poi.um_name},
                        "geojson": None}
         elif (switch_type_id == SWITCH_TYPES['tram_station']) or \
             (switch_type_id == SWITCH_TYPES['kiss_and_ride'] and \
@@ -303,7 +305,7 @@ class RoutingResult(object):
             poi = Session.query(TramStation).filter(
                 TramStation.type_id == ref_poi_id).first()
             sp_info = {"type": "tram_station",
-                       "name": poi.um_name,
+                       "tags": {"name": poi.um_name},
                        "geojson": None}
             logger.debug("Found poi: %s", poi)
         else:
