@@ -54,6 +54,15 @@ inferer.load_routing_options_from_file(ROUTING_OPTIONS_FILE)
 # inference engine with the routing options as inputs
 routing_plans = inferer.generate_routing_plan()
 print colored("done!", "green")
+print "Inferred plans: "
+for i, p in enumerate(routing_plans):
+    print "== " + str(i+1) + ". " + p.description + " =="
+    print "modes: " + str(p.mode_list)
+    print "switch types: " + str(p.switch_type_list)
+    print "source: " + str(p.source)
+    print "target: " + str(p.target)
+    print "public transits: " + str(p.public_transit_set)
+    print "switch constraints: " + str(p.switch_constraint_list)
 route_planner = MultimodalRoutePlanner()
 # A multimodal network data model is necessary for multimodal path finding. It
 # loads network dataset from external sources, e.g. PostgreSQL database, plain
@@ -70,6 +79,11 @@ print colored("Finish doing routing plan!", "green")
 print "Final refined routing results are: "
 for i, r in enumerate(final_results["result list"]):
     print "== " + str(i + 1) + ". " + r["description"] + " =="
+    print "Does it exist? ",
+    if r["is existent"] is True:
+        print colored(str(r["is existent"]), "green")
+    else:
+        print colored(str(r["is existent"]), "red")
     print "Total distance: ",
     print colored(str(r["length"]), "red"),
     print " meters"
@@ -83,12 +97,12 @@ for i, r in enumerate(final_results["result list"]):
     print "Multimodal path: "
     for p in r["paths"]:
         print colored((p["mode"] + ": "), "red")
-        print p["geojson"]
+        print str(p["geojson"])
     print "Switch Points along the path: "
     for sp in r["switch points"]:
         print colored((sp["type"] + ": "), "blue")
-        print sp["geojson"]
-        print sp["name"]
-with (open("multimodal_routing_results.json", 'w')) as result_file:
+        print str(sp["geojson"])
+        print str(sp["tags"])
+with (open("tmp/multimodal_routing_results.json", 'w')) as result_file:
     result_file.write(json.dumps(final_results))
 route_planner.cleanup()
