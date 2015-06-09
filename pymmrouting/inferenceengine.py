@@ -11,12 +11,16 @@ logger = logging.getLogger(__name__)
 
 INTERNAL_SRID = 4326
 # Read modes and switch_types from database instead of hard coding it here
-MODES         = {str(m_name): m_id
-                 for m_name, m_id in
-                 Session.query(Mode.mode_name, Mode.mode_id)}
-SWITCH_TYPES  = {str(t_name): t_id
-                 for t_name, t_id in
-                 Session.query(SwitchType.type_name, SwitchType.type_id)}
+MODES = {
+    str(m_name): m_id
+    for m_name, m_id in
+    Session.query(Mode.mode_name, Mode.mode_id)
+}
+SWITCH_TYPES = {
+    str(t_name): t_id
+    for t_name, t_id in
+    Session.query(SwitchType.type_name, SwitchType.type_id)
+}
 
 
 class RoutingPlan(object):
@@ -481,12 +485,13 @@ class RoutingPlanInferer(object):
                         cost_factor, [type_id],
                         ["type_id=" + str(type_id) + " AND is_available=true"])
                     car_public_plan1.public_transit_set = public_modes
+                    remaining_gas_factor = 0.5
                     if 'driving_distance_limit' in self.options:
                         car_public_plan1.switch_constraint_list = [
                             VERTEX_VALIDATION_CHECKER(
                                 lambda v: 0 if v[0].distance <= float(
                                     self.options['driving_distance_limit']) *
-                                1000.0 else -1)]
+                                1000.0 * remaining_gas_factor else -1)]
                     else:
                         car_public_plan1.switch_constraint_list = [None]
                     plans.append(car_public_plan1)
