@@ -1,5 +1,5 @@
 {
-    "datasource": {
+    "pg_datasource": {
         "connection": {
             "drivername": "postgres",
             "host":       "localhost",
