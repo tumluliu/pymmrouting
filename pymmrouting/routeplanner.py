@@ -7,7 +7,7 @@ from ctypes import CDLL, POINTER, \
     c_double, c_char_p, c_int, c_void_p, c_longlong
 from .routingresult import RoutingResult, RawMultimodalPath, ModePath
 from .orm_graphmodel import Session, Mode, SwitchType
-from .settings import PG_DB_CONF
+from .settings import PGBOUNCER_CONF
 import time
 import logging
 
@@ -15,12 +15,16 @@ logger = logging.getLogger(__name__)
 
 c_mmspa_lib = CDLL('libmmspa4pg.dylib')
 # Read modes and switch_types from database instead of hard coding it here
-MODES         = {str(m_name): m_id
-                 for m_name, m_id in
-                 Session.query(Mode.mode_name, Mode.mode_id)}
-SWITCH_TYPES  = {str(t_name): t_id
-                 for t_name, t_id in
-                 Session.query(SwitchType.type_name, SwitchType.type_id)}
+MODES = {
+    str(m_name): m_id
+    for m_name, m_id in
+    Session.query(Mode.mode_name, Mode.mode_id)
+}
+SWITCH_TYPES = {
+    str(t_name): t_id
+    for t_name, t_id in
+    Session.query(SwitchType.type_name, SwitchType.type_id)
+}
 
 
 class MultimodalRoutePlanner(object):
@@ -52,9 +56,10 @@ class MultimodalRoutePlanner(object):
         c_mmspa_lib.GetFinalCost.restype = c_double
         c_mmspa_lib.DisposePaths.argtypes = [POINTER(RawMultimodalPath)]
         pg_conn_str = \
-            "dbname = '" + PG_DB_CONF['database'] + "' " + \
-            "user = '" + PG_DB_CONF['username'] + "' " + \
-            "password = '" + PG_DB_CONF['password'] + "'"
+            "host = '" + PGBOUNCER_CONF['host'] + "' " + \
+            "user = '" + PGBOUNCER_CONF['username'] + "' " + \
+            "port = '" + PGBOUNCER_CONF['port'] + "' " + \
+            "dbname = '" + PGBOUNCER_CONF['database'] + "'"
         self.open_datasource(datasource_type, pg_conn_str)
         self.graph_file = None
 
