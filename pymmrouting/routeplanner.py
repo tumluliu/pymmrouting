@@ -7,13 +7,13 @@ from ctypes import CDLL, POINTER, \
     c_double, c_char_p, c_int, c_void_p, c_longlong
 from .routingresult import RoutingResult, RawMultimodalPath, ModePath
 from .orm_graphmodel import Session, Mode, SwitchType
-from .settings import PGBOUNCER_CONF
+from .settings import PGBOUNCER_CONF, LIB_MMSPA_CONF
 import time
 import logging
 
 logger = logging.getLogger(__name__)
 
-c_mmspa_lib = CDLL('libmmspa4pg.dylib')
+c_mmspa_lib = CDLL(LIB_MMSPA_CONF["filename"])
 # Read modes and switch_types from database instead of hard coding it here
 MODES = {
     str(m_name): m_id
