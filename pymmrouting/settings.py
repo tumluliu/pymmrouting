@@ -15,3 +15,4 @@ with (open(CONFIG_FILE, 'r')) as conf_file:
     logger.debug("Content of ['pg_datasource']['connection'] section: %s", PG_DB_CONF)
     PGBOUNCER_CONF = conf["pg_datasource"]["pgbouncer"]
     logger.debug("Content of ['pg_datasource']['pgbouncer'] section: %s", PGBOUNCER_CONF)
+    LIB_MMSPA_CONF = conf["mmspa"]
