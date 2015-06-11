@@ -10,6 +10,8 @@ The detailed platform information of all the U-bahn stations in Munich is collec
 
 ## Usage
 
+Rename the `sample-config.json` to `config.json` and modify its content according to your environment.
+
 A sample code snippet of calculating multimodal paths:
 
 ```python
@@ -28,14 +30,12 @@ And all the possible multimodal routing results including multimodal paths and s
 
 ## Dependencies
 
-* pymmspa4pg
-* libmmspa4pg
-* libpq
-
+- sqlalchemy
+- geoalchemy2
+- [mmspa] (https://github.com/tumluliu/mmspa)
 
 ## Contact
 
-Lu LIU
-
-nudtlliu#gmail.com
+- Lu LIU
+- nudtlliu#gmail.com
 
