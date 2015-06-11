@@ -14,5 +14,9 @@
             "username":   "user",
             "database":   "dbname"
         }
+    },
+    "mmspa": {
+        "filename": "libmmspa4pg.dylib",
+        "version": "1.0"
     }
 }
