@@ -82,6 +82,9 @@ class RoutingPlanInferer(object):
     def load_routing_options_from_string(self, options_json_string):
         self.options = json.loads(options_json_string)
 
+    def load_routing_options(self, options_dict):
+        self.options = options_dict
+
     def _reproject(self, old_x, old_y, old_srid, new_srid):
         # TODO: transform coordinate from given srid to 4326 in lon and lat
         return old_x, old_y
