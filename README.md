@@ -10,7 +10,7 @@ The detailed platform information of all the U-bahn stations in Munich is collec
 
 ## Usage
 
-Rename the `sample-config.json` to `config.json` and modify its content according to your environment.
+Rename the `sample-config.json` to `config.json` and modify its content according to your environment. The `pgbouncer` section is the Postgresql connection pooling configuration for libmmspa4pg. So please install and config [pgbouncer] (https://pgbouncer.github.io) in advance on your system.
 
 A sample code snippet of calculating multimodal paths:
 
@@ -33,6 +33,7 @@ And all the possible multimodal routing results including multimodal paths and s
 - sqlalchemy
 - geoalchemy2
 - [mmspa] (https://github.com/tumluliu/mmspa)
+- \[termcolor\] if you run rundemo.py
 
 ## Contact
 
