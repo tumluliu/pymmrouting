@@ -176,9 +176,6 @@ class RoutingResult(object):
         self.unfolded_mode_list        = []
         self.mode_paths                = []
         self.planned_switch_type_list  = []
-        self.unfolded_switch_type_list = []
-        self.switch_point_list         = []
-        self.switch_point_tags_list    = []
         self.description               = ''
         self.length                    = 0.0
         self.time                      = 0.0
