@@ -35,6 +35,20 @@ And all the possible multimodal routing results including multimodal paths and s
 - [mmspa] (https://github.com/tumluliu/mmspa)
 - \[termcolor\] if you run rundemo.py
 
+## Tests
+
+Test with nose under the project dir:
+
+```bash
+nosetests
+```
+
+with coverage report in HTML:
+
+```bash
+nosetests --with-coverage --cover-html --cover-package=pymmrouting
+```
+
 ## Contact
 
 - Lu LIU
