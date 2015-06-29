@@ -329,16 +329,17 @@ class RoutingResult(object):
         return json.dumps(self.to_dict())
 
     def to_dict(self):
-        rd                   = {}
-        rd["is existent"]    = self.is_existent
-        rd["description"]    = self.description
-        rd["length"]         = self.length
-        rd["time"]           = self.time
-        rd["walking time"]   = self.walking_time
-        rd["walking length"] = self.walking_length
-        rd["switch points"]  = self.switch_points
-        rd["paths"]          = [{"mode": INV_MODES[mp.mode], "geojson": mp.to_geojson()}
-                                for mp in self.mode_paths]
+        rd                     = {}
+        rd["existence"]        = self.is_existent
+        rd["summary"]          = self.description
+        rd["distance"]         = self.length
+        rd["duration"]         = self.time
+        rd["walking_duration"] = self.walking_time
+        rd["walking_distance"] = self.walking_length
+        rd["switch_points"]    = self.switch_points
+        rd["paths"]            = [{"mode": INV_MODES[mp.mode],
+                                   "geojson": mp.to_geojson()}
+                                  for mp in self.mode_paths]
         return rd
 
     def output_path_info(self, prefix=None):
