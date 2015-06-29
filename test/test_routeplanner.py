@@ -28,7 +28,7 @@ class RoutePlannerTestCase(unittest.TestCase):
             if p.mode_list == [self.modes["foot"]]:
                 plan = p
         planner = MultimodalRoutePlanner()
-        rd = planner.find_path(plan)["result list"][0]
+        rd = planner.find_path(plan)["routes"][0]
         self.assertTrue(rd["is existent"])
         self.assertTrue("Walking", rd["description"])
         self.assertAlmostEqual(5567.744, rd["length"], places=3)
@@ -53,7 +53,7 @@ class RoutePlannerTestCase(unittest.TestCase):
             if p.mode_list == [self.modes["private_car"], self.modes["foot"]]:
                 plan = p
         with MultimodalRoutePlanner() as planner:
-            rd = planner.find_path(plan)["result list"][0]
+            rd = planner.find_path(plan)["routes"][0]
             self.assertTrue(rd["is existent"])
             self.assertFalse(not rd["switch points"])
             self.assertEqual("car_parking", rd["switch points"][0]["type"])
