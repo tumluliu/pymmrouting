@@ -128,9 +128,9 @@ class MultimodalRoutePlanner(object):
         c_mmspa_lib.Dispose()
 
     def batch_find_path(self, plans):
-        result_dict = {"result list": []}
+        result_dict = {"routes": []}
         for p in plans:
-            result_dict["result list"] += self.find_path(p)["result list"]
+            result_dict["routes"] += self.find_path(p)["routes"]
         return result_dict
 
     def refine_results(self, results):
@@ -160,7 +160,7 @@ class MultimodalRoutePlanner(object):
         if routing_result.is_existent is True:
             c_mmspa_lib.DisposePaths(final_path)
         self.disassemble_networks()
-        return {"result list": [routing_result.to_dict()]}
+        return {"routes": [routing_result.to_dict()]}
 
     def _construct_result(self, plan, final_path):
         """ Construct a bundle of routing plan and result
