@@ -1,7 +1,7 @@
 from distutils.core import setup
 
 setup(name="pymmrouting",
-      version="0.1.2",
+      version="0.2.2",
       description="""Python implementation of multimodal routing engine
                      based on multimodal shortest path algorithm for
                      postgis library (libmmspa4pg)""",
