@@ -2,10 +2,10 @@
 #           'switchcondition', 'datamodel']
 
 __title__ = 'pymmrouting'
-__version__ = '0.2'
+__version__ = '0.1.2'
 __author__ = 'LIU Lu'
 __license__ = 'The MIT License'
-__copyright__ = 'Copyright 2014 LIU Lu'
+__copyright__ = 'Copyright 2014-2015 LIU Lu'
 
 __all__ = ['routeplanner', 'inferenceengine', 'routingresult',
            'switchcondition']
