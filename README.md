@@ -28,8 +28,17 @@ planner.cleanup()
 
 And all the possible multimodal routing results including multimodal paths and switch points are stored in `results` which is a dict variable and can be serialized into a JSON format file.
 
+## Installation
+
+Require python >= 2.7
+
+```bash
+python setup.py install
+```
+
 ## Dependencies
 
+- pgbouncer
 - sqlalchemy
 - geoalchemy2
 - [mmspa] (https://github.com/tumluliu/mmspa)
