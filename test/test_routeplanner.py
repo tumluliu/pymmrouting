@@ -36,14 +36,14 @@ class RoutePlannerTestCase(unittest.TestCase):
         self.assertEqual(rd["distance"], rd["walking_distance"])
         self.assertEqual(rd["duration"], rd["walking_duration"])
         self.assertTrue(not rd["switch_points"])
-        self.assertEqual(1, len(rd["paths"]))
-        self.assertEqual("foot", rd["paths"][0]["mode"])
-        self.assertEqual("LineString", rd["paths"][0]["geojson"]["type"])
-        self.assertGreaterEqual(len(rd["paths"][0]["geojson"]["coordinates"]), 2)
+        self.assertEqual(1, len(rd["geojson"]["features"]))
+        self.assertEqual("foot", rd["geojson"]["features"][0]["properties"]["mode"])
+        self.assertEqual("LineString", rd["geojson"]["features"][0]['geometry']["type"])
+        self.assertGreaterEqual(len(rd["geojson"]["features"][0]["geometry"]["coordinates"]), 2)
         self.assertListEqual([11.5682317, 48.1500053],
-                             rd["paths"][0]["geojson"]["coordinates"][0])
+                             rd["geojson"]["features"][0]["geometry"]["coordinates"][0])
         self.assertListEqual([11.5036395, 48.1583208],
-                             rd["paths"][0]["geojson"]["coordinates"][-1])
+                             rd["geojson"]["features"][0]["geometry"]["coordinates"][-1])
         planner.cleanup()
 
     def test_find_path_for_driving_and_walking_plan(self):
@@ -56,28 +56,32 @@ class RoutePlannerTestCase(unittest.TestCase):
             rd = planner.find_path(plan)["routes"][0]
             self.assertTrue(rd["existence"])
             self.assertFalse(not rd["switch_points"])
-            self.assertEqual("car_parking", rd["switch_points"][0]["type"])
-            self.assertEqual("Point", rd["switch_points"][0]["geojson"]["type"])
+            self.assertEqual("car_parking",
+                             rd["switch_points"][0]['properties']["switch_type"])
+            self.assertEqual("Point", rd["switch_points"][0]["geometry"]["type"])
             self.assertTrue("Driving, parking and walking", rd["summary"])
-            self.assertEqual(2, len(rd["paths"]))
-            self.assertEqual("private_car", rd["paths"][0]["mode"])
-            self.assertEqual("foot", rd["paths"][1]["mode"])
+            self.assertEqual(3, len(rd["geojson"]["features"]))
+            self.assertEqual("private_car", rd["geojson"]["features"][0]["properties"]["mode"])
+            self.assertEqual("car_parking", rd["geojson"]["features"][1]["properties"]["switch_type"])
+            self.assertEqual("foot", rd["geojson"]["features"][2]["properties"]["mode"])
             self.assertAlmostEqual(6700.675, rd["distance"], places=3)
             self.assertAlmostEqual(20.2001, rd["duration"], places=3)
             self.assertAlmostEqual(522.534, rd["walking_distance"], places=3)
             self.assertAlmostEqual(6.967, rd["walking_duration"], places=3)
-            self.assertEqual("LineString", rd["paths"][0]["geojson"]["type"])
+            self.assertEqual("LineString", rd["geojson"]["features"][0]["geometry"]["type"])
             self.assertListEqual([11.5682317, 48.1500053],
-                                 rd["paths"][0]["geojson"]["coordinates"][0])
+                                 rd["geojson"]["features"][0]["geometry"]["coordinates"][0])
             self.assertListEqual([11.5008518, 48.1611429],
-                                 rd["paths"][0]["geojson"]["coordinates"][-1])
-            self.assertGreaterEqual(len(rd["paths"][0]["geojson"]["coordinates"]), 2)
-            self.assertEqual("LineString", rd["paths"][1]["geojson"]["type"])
+                                 rd["geojson"]["features"][0]["geometry"]["coordinates"][-1])
+            self.assertGreaterEqual(len(rd["geojson"]["features"][0]["geometry"]["coordinates"]), 2)
+            self.assertEqual("switch_point", rd['geojson']['features'][1]['properties']['type'])
+            self.assertEqual("car_parking", rd['geojson']['features'][1]['properties']['switch_type'])
+            self.assertEqual("LineString", rd["geojson"]["features"][2]["geometry"]["type"])
             self.assertListEqual([11.5008518, 48.1611429],
-                                 rd["paths"][1]["geojson"]["coordinates"][0])
+                                 rd["geojson"]["features"][2]["geometry"]["coordinates"][0])
             self.assertListEqual([11.5036395, 48.1583208],
-                                 rd["paths"][1]["geojson"]["coordinates"][-1])
-            self.assertGreaterEqual(len(rd["paths"][1]["geojson"]["coordinates"]), 2)
+                                 rd["geojson"]["features"][2]["geometry"]["coordinates"][-1])
+            self.assertGreaterEqual(len(rd["geojson"]["features"][2]["geometry"]["coordinates"]), 2)
 
     def test_batch_find_paths(self):
         pass
