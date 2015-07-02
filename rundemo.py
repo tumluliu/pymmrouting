@@ -77,32 +77,29 @@ rough_results = route_planner.batch_find_path(routing_plans)
 final_results = route_planner.refine_results(rough_results)
 print colored("Finish doing routing plan!", "green")
 print "Final refined routing results are: "
-for i, r in enumerate(final_results["result list"]):
-    print "== " + str(i + 1) + ". " + r["description"] + " =="
+for i, r in enumerate(final_results["routes"]):
+    print "== " + str(i + 1) + ". " + r["summary"] + " =="
     print "Does it exist? ",
-    if r["is existent"] is True:
-        print colored(str(r["is existent"]), "green")
+    if r["existence"] is True:
+        print colored(str(r["existence"]), "green")
     else:
-        print colored(str(r["is existent"]), "red")
+        print colored(str(r["existence"]), "red")
     print "Total distance: ",
-    print colored(str(r["length"]), "red"),
+    print colored(str(r["distance"]), "red"),
     print " meters"
     print "Total time (estimated): ",
-    print colored(str(datetime.timedelta(minutes=float(r["time"]))), "red")
+    print colored(str(datetime.timedelta(minutes=float(r["duration"]))), "red")
     print "Total walking distance: ",
-    print colored(str(r["walking length"]), "red"),
+    print colored(str(r["walking_distance"]), "red"),
     print " meters"
     print "Total walking time (estimated): ",
-    print colored(str(datetime.timedelta(minutes=float(r["walking time"]))), "red")
+    print colored(str(datetime.timedelta(minutes=float(r["walking_duration"]))), "red")
     print "Multimodal path: "
-    for p in r["paths"]:
-        print colored((p["mode"] + ": "), "red")
-        print str(p["geojson"])
+    print str(r["geojson"])
     print "Switch Points along the path: "
-    for sp in r["switch points"]:
-        print colored((sp["type"] + ": "), "blue")
-        print str(sp["geojson"])
-        print str(sp["tags"])
+    for sp in r["switch_points"]:
+        print colored((sp['properties']['switch_type'] + ": "), "blue")
+        print str(sp)
 with (open("tmp/multimodal_routing_results.json", 'w')) as result_file:
     result_file.write(json.dumps(final_results))
 route_planner.cleanup()
