@@ -302,7 +302,7 @@ class RoutingResult(object):
             sp_info['properties'] = {
                 "type": "switch_point",
                 "switch_type": "car_parking",
-                "name": poi.name
+                "title": poi.name
             }
         elif switch_type_id == SWITCH_TYPES['geo_connection']:
             logger.info("Find switch point around geo connections in street network")
@@ -311,7 +311,7 @@ class RoutingResult(object):
             sp_info['properties'] = {
                 "type": "switch_point",
                 "switch_type": "geo_connection",
-                "name": ""
+                "title": ""
             }
         elif switch_type_id == SWITCH_TYPES['park_and_ride']:
             logger.info("Find switch point around park and ride lots")
@@ -320,7 +320,7 @@ class RoutingResult(object):
             sp_info['properties'] = {
                 "type": "switch_point",
                 "switch_type": "park_and_ride",
-                "name": poi.um_name
+                "title": poi.um_name
             }
         elif (switch_type_id == SWITCH_TYPES['underground_station']) or \
             (switch_type_id == SWITCH_TYPES['kiss_and_ride'] and \
@@ -331,7 +331,7 @@ class RoutingResult(object):
             sp_info['properties'] = {
                 "type": "switch_point",
                 "switch_type": "underground_station",
-                "name": poi.station,
+                "title": poi.station,
                 "line": poi.line_name,
                 "platform": poi.pf_name
             }
@@ -345,7 +345,7 @@ class RoutingResult(object):
             sp_info['properties'] = {
                 "type": "switch_point",
                 "switch_type": "suburban_station",
-                "name": poi.um_name,
+                "title": poi.um_name,
                 "line": '',
                 "platform": ''
             }
@@ -358,7 +358,7 @@ class RoutingResult(object):
             sp_info['properties'] = {
                 "type": "switch_point",
                 "switch_type": "tram_station",
-                "name": poi.um_name,
+                "title": poi.um_name,
                 "line": '',
                 "platform": ''
             }
@@ -471,7 +471,6 @@ class RoutingResult(object):
                 switch_point_style = {
                     "marker-size": "medium",
                     "marker-symbol": SWITCH_SYMBOL[self.switch_points[i]["properties"]["switch_type"]],
-                    "title": self.switch_points[i]["properties"]["name"]
                 }
                 self.switch_points[i]["properties"] = self._merge_dicts(
                     switch_point_style, self.switch_points[i]["properties"])
