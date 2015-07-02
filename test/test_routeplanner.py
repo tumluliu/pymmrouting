@@ -73,9 +73,11 @@ class RoutePlannerTestCase(unittest.TestCase):
                                  rd["geojson"]["features"][0]["geometry"]["coordinates"][0])
             self.assertListEqual([11.5008518, 48.1611429],
                                  rd["geojson"]["features"][0]["geometry"]["coordinates"][-1])
+            self.assertIn("stroke", rd['geojson']['features'][0]['properties'])
             self.assertGreaterEqual(len(rd["geojson"]["features"][0]["geometry"]["coordinates"]), 2)
             self.assertEqual("switch_point", rd['geojson']['features'][1]['properties']['type'])
             self.assertEqual("car_parking", rd['geojson']['features'][1]['properties']['switch_type'])
+            self.assertIn("marker-size", rd['geojson']['features'][1]['properties'])
             self.assertEqual("LineString", rd["geojson"]["features"][2]["geometry"]["type"])
             self.assertListEqual([11.5008518, 48.1611429],
                                  rd["geojson"]["features"][2]["geometry"]["coordinates"][0])
