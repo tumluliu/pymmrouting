@@ -17,16 +17,47 @@ MODES = {
     for m_name, m_id in
     Session.query(Mode.mode_name, Mode.mode_id)
 }
+
 INV_MODES = {
     m_id: str(m_name)
     for m_name, m_id in
     Session.query(Mode.mode_name, Mode.mode_id)
 }
-PUBLIC_TRANSIT_MODES = [MODES['underground'], MODES['suburban'], MODES['tram']]
+
+PUBLIC_TRANSIT_MODES = {
+    'underground': MODES['underground'],
+    'suburban':    MODES['suburban'],
+    'tram':        MODES['tram'],
+    'bus':         MODES['bus']
+}
+
 SWITCH_TYPES = {
     t_name: t_id
     for t_name, t_id in
     Session.query(SwitchType.type_name, SwitchType.type_id)
+}
+
+DEFAULT_MODE_COLORS = {
+    'private_car': '#26314c',
+    'foot':        '#3bb2d0',
+    'underground': '#006cb2',
+    'suburban':    '#509552',
+    'tram':        '#d03c41',
+    'bus':         '#015869',
+    'bicycle':     '#d07a3c'
+}
+
+SWITCH_SYMBOL = {
+    'car_parking':         'parking',
+    'geo_connection':      '',
+    'park_and_ride':       'parking-garage',
+    'underground_station': 'rail',
+    'suburban_station':    'rail-light',
+    'tram_station':        'rail-metro',
+    'bus_station':         'bus',
+    # FIXME There should be sub-types under kiss_and_ride, i.e. u-station,
+    # s-station, tram-station or bus-station
+    'kiss_and_ride':       ''
 }
 # TODO: This mapping should not be place here in the source code. It should be
 # somewhere else in the persistant container like database
@@ -51,6 +82,12 @@ class ModePath(object):
         self._edge_id_list  = []
         self._point_list    = []
         self.sub_mode_paths = []
+        self.properties     = {
+            'type':        'path',
+            'title':       '',
+            'description': '',
+            'mode':        INV_MODES[self.mode]
+        }
         # FIXME: The following attribute values can not be figured out so far
         #self.length         = 0.0
         #self.walking_length = 0.0
@@ -229,7 +266,7 @@ class RoutingResult(object):
             to_mode = mp.mode
             to_vertex_id = mp.vertex_id_list[0]
             if (set([from_mode, to_mode]).issubset(
-                set(PUBLIC_TRANSIT_MODES + [MODES['foot']]))):
+                set(PUBLIC_TRANSIT_MODES.values() + [MODES['foot']]))):
                 type_id = Session.query(SwitchPoint.type_id).filter(
                     SwitchPoint.from_vertex_id == from_vertex_id,
                     SwitchPoint.to_vertex_id == to_vertex_id,
@@ -253,38 +290,51 @@ class RoutingResult(object):
                                    switch_type_id, ref_poi_id):
         logger.info("Find switch point between %s and %s, with type %s and poi id %s",
                     from_mode, to_mode, switch_type_id, ref_poi_id)
+        sp_info = {
+            'type': 'Feature',
+            'properties': {},
+            'geometry': {}
+        }
         if switch_type_id == SWITCH_TYPES['car_parking']:
             logger.info("Find switch point around car parking lots")
             poi = Session.query(CarParking).filter(
                 CarParking.osm_id == ref_poi_id).first()
-            sp_info = {"type": "car_parking",
-                       "tags": {"name": poi.name},
-                       "geojson": None}
+            sp_info['properties'] = {
+                "type": "switch_point",
+                "switch_type": "car_parking",
+                "name": poi.name
+            }
         elif switch_type_id == SWITCH_TYPES['geo_connection']:
             logger.info("Find switch point around geo connections in street network")
             poi = Session.query(StreetJunction).filter(
                 StreetJunction.osm_id == ref_poi_id).first()
-            sp_info = {"type": "geo_connection",
-                       "tags": {"name": ""},
-                       "geojson": None}
+            sp_info['properties'] = {
+                "type": "switch_point",
+                "switch_type": "geo_connection",
+                "name": ""
+            }
         elif switch_type_id == SWITCH_TYPES['park_and_ride']:
             logger.info("Find switch point around park and ride lots")
             poi = Session.query(ParkAndRide).filter(
                 ParkAndRide.poi_id == ref_poi_id).first()
-            sp_info = {"type": "park_and_ride",
-                       "tags": {"name": poi.um_name},
-                       "geojson": None}
+            sp_info['properties'] = {
+                "type": "switch_point",
+                "switch_type": "park_and_ride",
+                "name": poi.um_name
+            }
         elif (switch_type_id == SWITCH_TYPES['underground_station']) or \
             (switch_type_id == SWITCH_TYPES['kiss_and_ride'] and \
              to_mode == MODES['underground']):
             logger.info("Find switch point around underground platforms ")
             poi = Session.query(UndergroundPlatform).filter(
                 UndergroundPlatform.platformid == ref_poi_id).first()
-            sp_info = {"type": "underground_station",
-                       "tags": {"name": poi.station,
-                                "line": poi.line_name,
-                                "platform": poi.pf_name},
-                       "geojson": None}
+            sp_info['properties'] = {
+                "type": "switch_point",
+                "switch_type": "underground_station",
+                "name": poi.station,
+                "line": poi.line_name,
+                "platform": poi.pf_name
+            }
             logger.debug("Found poi: %s", poi)
         elif (switch_type_id == SWITCH_TYPES['suburban_station']) or \
             (switch_type_id == SWITCH_TYPES['kiss_and_ride'] and \
@@ -292,18 +342,26 @@ class RoutingResult(object):
             logger.info("Find switch point around suburban stations ")
             poi = Session.query(SuburbanStation).filter(
                 SuburbanStation.type_id == ref_poi_id).first()
-            sp_info = {"type": "suburban_station",
-                       "tags": {"name": poi.um_name},
-                       "geojson": None}
+            sp_info['properties'] = {
+                "type": "switch_point",
+                "switch_type": "suburban_station",
+                "name": poi.um_name,
+                "line": '',
+                "platform": ''
+            }
         elif (switch_type_id == SWITCH_TYPES['tram_station']) or \
             (switch_type_id == SWITCH_TYPES['kiss_and_ride'] and \
              to_mode == MODES['tram']):
             logger.info("Find switch point around tram stations ")
             poi = Session.query(TramStation).filter(
                 TramStation.type_id == ref_poi_id).first()
-            sp_info = {"type": "tram_station",
-                       "tags": {"name": poi.um_name},
-                       "geojson": None}
+            sp_info['properties'] = {
+                "type": "switch_point",
+                "switch_type": "tram_station",
+                "name": poi.um_name,
+                "line": '',
+                "platform": ''
+            }
             logger.debug("Found poi: %s", poi)
         else:
             logger.info("No matching switch point poi condition!")
@@ -311,7 +369,7 @@ class RoutingResult(object):
             sp_info = {}
         if (not poi is None):
             geojson = json.loads(Session.scalar(st_asgeojson(poi.geom)))
-            sp_info["geojson"] = geojson
+            sp_info['geometry'] = geojson
         return sp_info
 
     def unfold_sub_paths(self):
@@ -328,7 +386,43 @@ class RoutingResult(object):
     def to_json(self):
         return json.dumps(self.to_dict())
 
+
     def to_dict(self):
+        """
+        A sample complicated GeoJSON:
+        {
+            "type": "FeatureCollection",
+            "features": [{
+                "type": "Feature",
+                "properties": {
+                    "stroke": "#eeffee",
+                    "stroke-opacity": 0.7,
+                    "stroke-width": 5
+                },
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [
+                        [119.2895599, 21.718679],
+                        [119.2895599, 25.373809],
+                        [122.61840, 25.37380917],
+                        [122.61840, 21.71867980]
+                    ]
+                }
+            }, {
+                "type": "Feature",
+                "properties": {
+                    "title": "Hauptbahnhof",
+                    "description": "Underground station, Platform 2",
+                    "marker-color": "#0000ff",
+                    "marker-symbol": "subway"
+                },
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [120.89355, 23.68477]
+                }
+            }]
+        }
+        """
         rd                     = {}
         rd["existence"]        = self.is_existent
         rd["summary"]          = self.description
@@ -337,10 +431,57 @@ class RoutingResult(object):
         rd["walking_duration"] = self.walking_time
         rd["walking_distance"] = self.walking_length
         rd["switch_points"]    = self.switch_points
-        rd["paths"]            = [{"mode": INV_MODES[mp.mode],
-                                   "geojson": mp.to_geojson()}
-                                  for mp in self.mode_paths]
+        rd["geojson"]          = {"type": "FeatureCollection", "features": []}
+        for i, mp in enumerate(self.mode_paths):
+            line_style = {
+                "stroke": DEFAULT_MODE_COLORS[INV_MODES[mp.mode]],
+                "stroke-opacity": 0.7,
+                "stroke-width": 4
+            }
+            line_feature = {
+                "type": "Feature",
+                "properties": self._merge_dicts(mp.properties, line_style),
+                "geometry": mp.to_geojson()
+            }
+            # Set the name of public transit lines according to the start
+            # station switch point information
+            if line_feature['properties']['mode'] in PUBLIC_TRANSIT_MODES.keys():
+                if i > 0:
+                    if 'line' in rd['geojson']['features'][-1]['properties']:
+                        stationInfo = rd['geojson']['features'][-1]['properties']
+                        if stationInfo['line'] != '':
+                            line_feature['properties']['title'] = \
+                                stationInfo['line']
+                        else:
+                            line_feature['properties']['title'] = \
+                                line_feature['properties']['mode'] + ' line'
+                    else:
+                        # The previous switch_point is not a station, it might
+                        # be P+R or K+R. So let's check the next switch_point
+                        if 'line' in self.switch_points[i]['properties']:
+                            stationInfo = self.switch_points[i]['properties']
+                            if stationInfo['line'] != '':
+                                line_feature['properties']['title'] = \
+                                    stationInfo['line']
+                            else:
+                                line_feature['properties']['title'] = \
+                                    line_feature['properties']['mode'] + ' line'
+            rd["geojson"]["features"].append(line_feature)
+            if (i < len(self.mode_paths) - 1):
+                switch_point_style = {
+                    "marker-size": "medium",
+                    "marker-symbol": SWITCH_SYMBOL[self.switch_points[i]["properties"]["switch_type"]],
+                    "title": self.switch_points[i]["properties"]["name"]
+                }
+                self.switch_points[i]["properties"] = self._merge_dicts(
+                    switch_point_style, self.switch_points[i]["properties"])
+                rd["geojson"]["features"].append(self.switch_points[i])
         return rd
+
+    def _merge_dicts(self, x, y):
+        z = x.copy()
+        z.update(y)
+        return z
 
     def output_path_info(self, prefix=None):
         if prefix is None:
