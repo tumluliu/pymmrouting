@@ -292,49 +292,52 @@ class RoutingResult(object):
                     from_mode, to_mode, switch_type_id, ref_poi_id)
         sp_info = {
             'type': 'Feature',
-            'properties': {},
+            'properties': {
+                'type': 'switch_point',
+                'marker-size': 'medium'
+            },
             'geometry': {}
         }
         if switch_type_id == SWITCH_TYPES['car_parking']:
             logger.info("Find switch point around car parking lots")
             poi = Session.query(CarParking).filter(
                 CarParking.osm_id == ref_poi_id).first()
-            sp_info['properties'] = {
-                "type": "switch_point",
+            sp_info['properties'].update({
                 "switch_type": "car_parking",
+                "marker-symbol": SWITCH_SYMBOL['car_parking'],
                 "title": poi.name
-            }
+            })
         elif switch_type_id == SWITCH_TYPES['geo_connection']:
             logger.info("Find switch point around geo connections in street network")
             poi = Session.query(StreetJunction).filter(
                 StreetJunction.osm_id == ref_poi_id).first()
-            sp_info['properties'] = {
-                "type": "switch_point",
+            sp_info['properties'].update({
                 "switch_type": "geo_connection",
+                "marker-symbol": SWITCH_SYMBOL['geo_connection'],
                 "title": ""
-            }
+            })
         elif switch_type_id == SWITCH_TYPES['park_and_ride']:
             logger.info("Find switch point around park and ride lots")
             poi = Session.query(ParkAndRide).filter(
                 ParkAndRide.poi_id == ref_poi_id).first()
-            sp_info['properties'] = {
-                "type": "switch_point",
+            sp_info['properties'].update({
                 "switch_type": "park_and_ride",
+                "marker-symbol": SWITCH_SYMBOL['park_and_ride'],
                 "title": poi.um_name
-            }
+            })
         elif (switch_type_id == SWITCH_TYPES['underground_station']) or \
             (switch_type_id == SWITCH_TYPES['kiss_and_ride'] and \
              to_mode == MODES['underground']):
             logger.info("Find switch point around underground platforms ")
             poi = Session.query(UndergroundPlatform).filter(
                 UndergroundPlatform.platformid == ref_poi_id).first()
-            sp_info['properties'] = {
-                "type": "switch_point",
+            sp_info['properties'].update({
                 "switch_type": "underground_station",
+                "marker-symbol": SWITCH_SYMBOL['underground_station'],
                 "title": poi.station,
                 "line": poi.line_name,
                 "platform": poi.pf_name
-            }
+            })
             logger.debug("Found poi: %s", poi)
         elif (switch_type_id == SWITCH_TYPES['suburban_station']) or \
             (switch_type_id == SWITCH_TYPES['kiss_and_ride'] and \
@@ -342,26 +345,26 @@ class RoutingResult(object):
             logger.info("Find switch point around suburban stations ")
             poi = Session.query(SuburbanStation).filter(
                 SuburbanStation.type_id == ref_poi_id).first()
-            sp_info['properties'] = {
-                "type": "switch_point",
+            sp_info['properties'].update({
                 "switch_type": "suburban_station",
+                "marker-symbol": SWITCH_SYMBOL['suburban_station'],
                 "title": poi.um_name,
                 "line": '',
                 "platform": ''
-            }
+            })
         elif (switch_type_id == SWITCH_TYPES['tram_station']) or \
             (switch_type_id == SWITCH_TYPES['kiss_and_ride'] and \
              to_mode == MODES['tram']):
             logger.info("Find switch point around tram stations ")
             poi = Session.query(TramStation).filter(
                 TramStation.type_id == ref_poi_id).first()
-            sp_info['properties'] = {
-                "type": "switch_point",
+            sp_info['properties'].update({
                 "switch_type": "tram_station",
+                "marker-symbol": SWITCH_SYMBOL['tram_station'],
                 "title": poi.um_name,
                 "line": '',
                 "platform": ''
-            }
+            })
             logger.debug("Found poi: %s", poi)
         else:
             logger.info("No matching switch point poi condition!")
@@ -468,12 +471,15 @@ class RoutingResult(object):
                                     line_feature['properties']['mode'] + ' line'
             rd["geojson"]["features"].append(line_feature)
             if (i < len(self.mode_paths) - 1):
-                switch_point_style = {
-                    "marker-size": "medium",
-                    "marker-symbol": SWITCH_SYMBOL[self.switch_points[i]["properties"]["switch_type"]],
-                }
-                self.switch_points[i]["properties"] = self._merge_dicts(
-                    switch_point_style, self.switch_points[i]["properties"])
+                logger.debug('BEFORE assigning marker-size: %s',
+                             str(self.switch_points[i]['properties']))
+                self.switch_points[i]['properties']['marker-size'] = 'medium'
+                logger.debug('AFTER assigning marker-size: %s',
+                             str(self.switch_points[i]['properties']))
+                self.switch_points[i]['properties']['marker-symbol'] = \
+                    SWITCH_SYMBOL[self.switch_points[i]["properties"]["switch_type"]]
+                logger.debug('properties after appending to switch_point obj: %s',
+                             str(self.switch_points[i]['properties']))
                 rd["geojson"]["features"].append(self.switch_points[i])
         return rd
 
