@@ -398,9 +398,9 @@ class RoutingResult(object):
             "features": [{
                 "type": "Feature",
                 "properties": {
-                    "stroke": "#eeffee",
-                    "stroke-opacity": 0.7,
-                    "stroke-width": 5
+                    "color": "#eeffee",
+                    "opacity": 0.7,
+                    "weight": 5
                 },
                 "geometry": {
                     "type": "LineString",
@@ -437,9 +437,9 @@ class RoutingResult(object):
         rd["geojson"]          = {"type": "FeatureCollection", "features": []}
         for i, mp in enumerate(self.mode_paths):
             line_style = {
-                "stroke": DEFAULT_MODE_COLORS[INV_MODES[mp.mode]],
-                "stroke-opacity": 0.7,
-                "stroke-width": 4
+                "color": DEFAULT_MODE_COLORS[INV_MODES[mp.mode]],
+                "opacity": 0.7,
+                "weight": 4
             }
             line_feature = {
                 "type": "Feature",
