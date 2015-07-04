@@ -128,9 +128,10 @@ class MultimodalRoutePlanner(object):
         c_mmspa_lib.Dispose()
 
     def batch_find_path(self, plans):
-        result_dict = {"routes": []}
+        result_dict = { "routes": [] }
         for p in plans:
-            result_dict["routes"] += self.find_path(p)["routes"]
+            result = self.find_path(p)
+            result_dict["routes"] += result["routes"]
         return result_dict
 
     def refine_results(self, results):
@@ -141,8 +142,8 @@ class MultimodalRoutePlanner(object):
 
     def find_path(self, plan):
         logger.info("Start path finding...")
-        logger.debug("source: %s", plan.source)
-        logger.debug("target: %s", plan.target)
+        logger.debug("source: %s", str(plan.source))
+        logger.debug("target: %s", str(plan.target))
         logger.info("Loading multimodal transportation networks ... ")
         t1 = time.time()
         self.assemble_networks(plan)
@@ -151,16 +152,22 @@ class MultimodalRoutePlanner(object):
         logger.info("Finish assembling multimodal networks, time consumed: %s seconds", (t2 - t1))
         logger.info("Calculating multimodal paths ... ")
         t1 = time.time()
-        c_mmspa_lib.MultimodalTwoQ(c_longlong(plan.source))
+        c_mmspa_lib.MultimodalTwoQ(c_longlong(plan.source['properties']['id']))
         t2 = time.time()
         logger.info("Finish calculating multimodal paths, time consumed: %s seconds", (t2 - t1))
-        final_path = c_mmspa_lib.GetFinalPath(c_longlong(plan.source),
-                                              c_longlong(plan.target))
+        final_path = c_mmspa_lib.GetFinalPath(c_longlong(plan.source['properties']['id']),
+                                              c_longlong(plan.target['properties']['id']))
         routing_result = self._construct_result(plan, final_path)
         if routing_result.is_existent is True:
             c_mmspa_lib.DisposePaths(final_path)
         self.disassemble_networks()
-        return {"routes": [routing_result.to_dict()]}
+        del plan.source['properties']['id']
+        del plan.target['properties']['id']
+        return {
+            "routes": [routing_result.to_dict()],
+            "source": plan.source,
+            "target": plan.target
+        }
 
     def _construct_result(self, plan, final_path):
         """ Construct a bundle of routing plan and result
@@ -195,11 +202,11 @@ class MultimodalRoutePlanner(object):
             logger.debug("vertex id list after unfolding: %s",
                          result.path_by_vertices)
             result.length = c_mmspa_lib.GetFinalCost(
-                c_longlong(plan.target), 'distance')
+                c_longlong(plan.target['properties']['id']), 'distance')
             result.time = c_mmspa_lib.GetFinalCost(
-                c_longlong(plan.target), 'elapsed_time')
+                c_longlong(plan.target['properties']['id']), 'elapsed_time')
             result.walking_length = c_mmspa_lib.GetFinalCost(
-                c_longlong(plan.target), 'walking_distance')
+                c_longlong(plan.target['properties']['id']), 'walking_distance')
             result.walking_time = c_mmspa_lib.GetFinalCost(
-                c_longlong(plan.target), 'walking_time')
+                c_longlong(plan.target['properties']['id']), 'walking_time')
         return result
