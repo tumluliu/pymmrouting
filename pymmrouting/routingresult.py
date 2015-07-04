@@ -392,39 +392,7 @@ class RoutingResult(object):
 
     def to_dict(self):
         """
-        A sample complicated GeoJSON:
-        {
-            "type": "FeatureCollection",
-            "features": [{
-                "type": "Feature",
-                "properties": {
-                    "stroke": "#eeffee",
-                    "stroke-opacity": 0.7,
-                    "stroke-width": 5
-                },
-                "geometry": {
-                    "type": "LineString",
-                    "coordinates": [
-                        [119.2895599, 21.718679],
-                        [119.2895599, 25.373809],
-                        [122.61840, 25.37380917],
-                        [122.61840, 21.71867980]
-                    ]
-                }
-            }, {
-                "type": "Feature",
-                "properties": {
-                    "title": "Hauptbahnhof",
-                    "description": "Underground station, Platform 2",
-                    "marker-color": "#0000ff",
-                    "marker-symbol": "subway"
-                },
-                "geometry": {
-                    "type": "Point",
-                    "coordinates": [120.89355, 23.68477]
-                }
-            }]
-        }
+        For more information about GeoJSON, refer to http://geojson.org
         """
         rd                     = {}
         rd["existence"]        = self.is_existent
@@ -471,15 +439,9 @@ class RoutingResult(object):
                                     line_feature['properties']['mode'] + ' line'
             rd["geojson"]["features"].append(line_feature)
             if (i < len(self.mode_paths) - 1):
-                logger.debug('BEFORE assigning marker-size: %s',
-                             str(self.switch_points[i]['properties']))
                 self.switch_points[i]['properties']['marker-size'] = 'medium'
-                logger.debug('AFTER assigning marker-size: %s',
-                             str(self.switch_points[i]['properties']))
                 self.switch_points[i]['properties']['marker-symbol'] = \
                     SWITCH_SYMBOL[self.switch_points[i]["properties"]["switch_type"]]
-                logger.debug('properties after appending to switch_point obj: %s',
-                             str(self.switch_points[i]['properties']))
                 rd["geojson"]["features"].append(self.switch_points[i])
         return rd
 

@@ -128,10 +128,12 @@ class MultimodalRoutePlanner(object):
         c_mmspa_lib.Dispose()
 
     def batch_find_path(self, plans):
-        result_dict = { "routes": [] }
+        result_dict = { "routes": []}
         for p in plans:
             result = self.find_path(p)
             result_dict["routes"] += result["routes"]
+            result_dict['source'] = result['source']
+            result_dict['target'] = result['target']
         return result_dict
 
     def refine_results(self, results):
