@@ -8,8 +8,30 @@ from os import path
 class RoutingPlanTestCase(unittest.TestCase):
 
     def setUp(self):
-        source = {'lon': 11.5675, 'lat': 48.1495}
-        target = {'lon': 11.5038, 'lat': 48.1583}
+        foot_source = {
+            'type': 'Feature',
+            'geometry': {
+                'type': 'Point',
+                'coordinates': [11.5675, 48.1495]
+            },
+            'properties': {'id': 12618163561}
+        }
+        car_source = {
+            'type': 'Feature',
+            'geometry': {
+                'type': 'Point',
+                'coordinates': [11.5675, 48.1495]
+            },
+            'properties': {'id': 11618163561}
+        }
+        target = {
+            'type': 'Feature',
+            'geometry': {
+                'type': 'Point',
+                'coordinates': [11.5038, 48.1583]
+            },
+            'properties': {'id': 12672741190}
+        }
         cost = 'speed'
         modes = {str(m_name): m_id
                  for m_name, m_id in
@@ -19,9 +41,9 @@ class RoutingPlanTestCase(unittest.TestCase):
                         Session.query(SwitchType.type_name, SwitchType.type_id)}
         # 1: Walking
         self.foot_plan = RoutingPlan(
-            'Walking', source, target, [modes['foot']], cost)
+            'Walking', foot_source, target, [modes['foot']], cost)
         self.car_plan = RoutingPlan(
-            'Take a car', source, target, [modes['private_car']], cost)
+            'Take a car', car_source, target, [modes['private_car']], cost)
         # 2: Driving
         driving_distance_limit = 200
         self.car_plan.target_constraint = VERTEX_VALIDATION_CHECKER(
@@ -29,7 +51,7 @@ class RoutingPlanTestCase(unittest.TestCase):
             1000.0 else -1)
         # 3: Take public transportation
         self.public_plan = RoutingPlan(
-            'Walking and taking public transit', source, target,
+            'Walking and taking public transit', foot_source, target,
             [modes['public_transportation']], cost)
         self.public_plan.public_transit_set = [
             modes['underground'], modes['tram']]
@@ -37,7 +59,7 @@ class RoutingPlanTestCase(unittest.TestCase):
         type_id = switch_types['geo_connection']
         self.car_public_plan = RoutingPlan(
             'Driving and taking public transit',
-            source, target,
+            car_source, target,
             [modes['private_car'], modes['public_transportation']],
             cost, [type_id],
             ["type_id=" + str(type_id) + " AND is_available=true"])

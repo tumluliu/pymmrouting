@@ -28,7 +28,8 @@ class RoutePlannerTestCase(unittest.TestCase):
             if p.mode_list == [self.modes["foot"]]:
                 plan = p
         planner = MultimodalRoutePlanner()
-        rd = planner.find_path(plan)["routes"][0]
+        result = planner.find_path(plan)
+        rd = result["routes"][0]
         self.assertTrue(rd["existence"])
         self.assertTrue("Walking", rd["summary"])
         self.assertAlmostEqual(5567.744, rd["distance"], places=3)
@@ -44,6 +45,10 @@ class RoutePlannerTestCase(unittest.TestCase):
                              rd["geojson"]["features"][0]["geometry"]["coordinates"][0])
         self.assertListEqual([11.5036395, 48.1583208],
                              rd["geojson"]["features"][0]["geometry"]["coordinates"][-1])
+        self.assertListEqual([11.5682317, 48.1500053],
+                             result["source"]["geometry"]["coordinates"])
+        self.assertListEqual([11.5036395, 48.1583208],
+                             result["target"]["geometry"]["coordinates"])
         planner.cleanup()
 
     def test_find_path_for_driving_and_walking_plan(self):
@@ -53,7 +58,12 @@ class RoutePlannerTestCase(unittest.TestCase):
             if p.mode_list == [self.modes["private_car"], self.modes["foot"]]:
                 plan = p
         with MultimodalRoutePlanner() as planner:
-            rd = planner.find_path(plan)["routes"][0]
+            result = planner.find_path(plan)
+            rd = result["routes"][0]
+            self.assertListEqual([11.5682317, 48.1500053],
+                                result["source"]["geometry"]["coordinates"])
+            self.assertListEqual([11.5036395, 48.1583208],
+                                result["target"]["geometry"]["coordinates"])
             self.assertTrue(rd["existence"])
             self.assertFalse(not rd["switch_points"])
             self.assertEqual("car_parking",
@@ -73,7 +83,7 @@ class RoutePlannerTestCase(unittest.TestCase):
                                  rd["geojson"]["features"][0]["geometry"]["coordinates"][0])
             self.assertListEqual([11.5008518, 48.1611429],
                                  rd["geojson"]["features"][0]["geometry"]["coordinates"][-1])
-            self.assertIn("color", rd['geojson']['features'][0]['properties'])
+            self.assertIn("stroke", rd['geojson']['features'][0]['properties'])
             self.assertGreaterEqual(len(rd["geojson"]["features"][0]["geometry"]["coordinates"]), 2)
             self.assertEqual("switch_point", rd['geojson']['features'][1]['properties']['type'])
             self.assertEqual("car_parking", rd['geojson']['features'][1]['properties']['switch_type'])
