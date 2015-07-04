@@ -59,6 +59,19 @@ SWITCH_SYMBOL = {
     # s-station, tram-station or bus-station
     'kiss_and_ride':       ''
 }
+
+SWITCH_SYMBOL_COLOR = {
+    'car_parking':         '#646464',
+    'geo_connection':      '#646464',
+    'park_and_ride':       '#646464',
+    'underground_station': '#0067ad',
+    'suburban_station':    '#4e8e40',
+    'tram_station':        '#cc0000',
+    'bus_station':         '#006677',
+    # FIXME There should be sub-types under kiss_and_ride, i.e. u-station,
+    # s-station, tram-station or bus-station
+    'kiss_and_ride':       '#646464'
+}
 # TODO: This mapping should not be place here in the source code. It should be
 # somewhere else in the persistant container like database
 TMP_DIR = "tmp/"
@@ -305,6 +318,7 @@ class RoutingResult(object):
             sp_info['properties'].update({
                 "switch_type": "car_parking",
                 "marker-symbol": SWITCH_SYMBOL['car_parking'],
+                "marker-color": SWITCH_SYMBOL_COLOR['car_parking'],
                 "title": poi.name
             })
         elif switch_type_id == SWITCH_TYPES['geo_connection']:
@@ -314,6 +328,7 @@ class RoutingResult(object):
             sp_info['properties'].update({
                 "switch_type": "geo_connection",
                 "marker-symbol": SWITCH_SYMBOL['geo_connection'],
+                "marker-color": SWITCH_SYMBOL_COLOR['geo_connection'],
                 "title": ""
             })
         elif switch_type_id == SWITCH_TYPES['park_and_ride']:
@@ -323,6 +338,7 @@ class RoutingResult(object):
             sp_info['properties'].update({
                 "switch_type": "park_and_ride",
                 "marker-symbol": SWITCH_SYMBOL['park_and_ride'],
+                "marker-color": SWITCH_SYMBOL_COLOR['park_and_ride'],
                 "title": poi.um_name
             })
         elif (switch_type_id == SWITCH_TYPES['underground_station']) or \
@@ -334,6 +350,7 @@ class RoutingResult(object):
             sp_info['properties'].update({
                 "switch_type": "underground_station",
                 "marker-symbol": SWITCH_SYMBOL['underground_station'],
+                "marker-color": SWITCH_SYMBOL_COLOR['underground_station'],
                 "title": poi.station,
                 "line": poi.line_name,
                 "platform": poi.pf_name
@@ -348,6 +365,7 @@ class RoutingResult(object):
             sp_info['properties'].update({
                 "switch_type": "suburban_station",
                 "marker-symbol": SWITCH_SYMBOL['suburban_station'],
+                "marker-color": SWITCH_SYMBOL_COLOR['suburban_station'],
                 "title": poi.um_name,
                 "line": '',
                 "platform": ''
@@ -361,6 +379,7 @@ class RoutingResult(object):
             sp_info['properties'].update({
                 "switch_type": "tram_station",
                 "marker-symbol": SWITCH_SYMBOL['tram_station'],
+                "marker-color": SWITCH_SYMBOL_COLOR['tram_station'],
                 "title": poi.um_name,
                 "line": '',
                 "platform": ''
@@ -406,8 +425,8 @@ class RoutingResult(object):
         for i, mp in enumerate(self.mode_paths):
             line_style = {
                 "stroke": DEFAULT_MODE_COLORS[INV_MODES[mp.mode]],
-                "stroke-opacity": 0.7,
-                "stroke-width": 4
+                "stroke-opacity": 0.78,
+                "stroke-width": 5
             }
             line_feature = {
                 "type": "Feature",
@@ -439,9 +458,9 @@ class RoutingResult(object):
                                     line_feature['properties']['mode'] + ' line'
             rd["geojson"]["features"].append(line_feature)
             if (i < len(self.mode_paths) - 1):
-                self.switch_points[i]['properties']['marker-size'] = 'medium'
-                self.switch_points[i]['properties']['marker-symbol'] = \
-                    SWITCH_SYMBOL[self.switch_points[i]["properties"]["switch_type"]]
+                #self.switch_points[i]['properties']['marker-size'] = 'medium'
+                #self.switch_points[i]['properties']['marker-symbol'] = \
+                    #SWITCH_SYMBOL[self.switch_points[i]["properties"]["switch_type"]]
                 rd["geojson"]["features"].append(self.switch_points[i])
         return rd
 
