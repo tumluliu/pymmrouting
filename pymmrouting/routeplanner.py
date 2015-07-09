@@ -8,6 +8,7 @@ from ctypes import CDLL, POINTER, \
 from .routingresult import RoutingResult, RawMultimodalPath, ModePath
 from .orm_graphmodel import Session, Mode, SwitchType
 from .settings import PGBOUNCER_CONF, LIB_MMSPA_CONF
+from operator import itemgetter
 import time
 import logging
 
@@ -157,6 +158,7 @@ class MultimodalRoutePlanner(object):
                     # is found in the result path. Such a path will be eliminated.
                     continue
             refined_results.append(r)
+        refined_results.sort(key=itemgetter('duration'))
         results['routes'] = refined_results
         return results
 
