@@ -73,8 +73,7 @@ print "Routing from " + \
             str(routing_options['source']['value']['y']), 'red') + " to " + \
     colored(str(routing_options['target']['value']['x']) + ',' +
             str(routing_options['target']['value']['y']), 'red')
-rough_results = route_planner.batch_find_path(routing_plans)
-final_results = route_planner.refine_results(rough_results)
+final_results = route_planner.batch_find_path(routing_plans)
 print colored("Finish doing routing plan!", "green")
 print "Final refined routing results are: "
 for i, r in enumerate(final_results["routes"]):
