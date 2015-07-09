@@ -135,27 +135,22 @@ class MultimodalRoutePlanner(object):
             result_dict["routes"] += result["routes"]
             result_dict['source'] = result['source']
             result_dict['target'] = result['target']
-        return result_dict
+        return self._refine_results(result_dict, plans)
 
-    def refine_results(self, results):
+    def _refine_results(self, results, plans):
         refined_results = []
-        for r in results['routes']:
+        for i, r in enumerate(results['routes']):
             if r['existence'] == False:
                 continue
-            modes = [f['properties']['mode']
-                     for f in r['geojson']['features']
-                     if f['properties']['type'] == 'path']
-            pt_modes = ['suburban', 'underground', 'tram', 'bus']
-            # Eliminate the result claiming using public transit but actually
-            # does not
-            if not (set(modes).isdisjoint(set(pt_modes))):
+            if MODES['public_transportation'] in plans[i].mode_list:
                 # Claim using public transit
-                real_switch_types = [sp['properties']['switch_type'] for sp in r['switch_points']]
-                pt_switch_types = ['suburban_station',
-                                   'underground_station',
-                                   'tram_station',
-                                   'bus_station']
-                if set(real_switch_types).isdisjoint(set(pt_switch_types)):
+                real_modes = [f['properties']['mode']
+                              for f in r['geojson']['features']
+                              if f['properties']['type'] == 'path']
+                pt_modes = ['suburban', 'underground', 'tram', 'bus']
+                # Eliminate the result claiming using public transit but actually
+                # does not
+                if (set(real_modes).isdisjoint(set(pt_modes))):
                     # It claims using public transit but no public transit station
                     # is found in the result path. Such a path will be eliminated.
                     continue
