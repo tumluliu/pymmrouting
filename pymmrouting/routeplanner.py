@@ -142,13 +142,15 @@ class MultimodalRoutePlanner(object):
         for r in results['routes']:
             if r['existence'] == False:
                 continue
-            modes = [f['properties']['mode'] for f in r['geojson']['features']]
+            modes = [f['properties']['mode']
+                     for f in r['geojson']['features']
+                     if f['properties']['type'] == 'path']
             pt_modes = ['suburban', 'underground', 'tram', 'bus']
             # Eliminate the result claiming using public transit but actually
             # does not
             if not (set(modes).isdisjoint(set(pt_modes))):
                 # Claim using public transit
-                real_switch_types = [sp['properties']['type'] for sp in r['switch_points']]
+                real_switch_types = [sp['properties']['switch_type'] for sp in r['switch_points']]
                 pt_switch_types = ['suburban_station',
                                    'underground_station',
                                    'tram_station',
