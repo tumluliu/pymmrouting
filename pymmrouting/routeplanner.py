@@ -137,9 +137,27 @@ class MultimodalRoutePlanner(object):
         return result_dict
 
     def refine_results(self, results):
-        # TODO Deduplicate the routing results
-        # TODO Remove (set is_existent = false) the path containing pure
-        # walking path in public_transportation mode
+        refined_results = []
+        for r in results['routes']:
+            if r['existence'] == False:
+                continue
+            modes = [f['properties']['mode'] for f in r['geojson']['features']]
+            pt_modes = ['suburban', 'underground', 'tram', 'bus']
+            # Eliminate the result claiming using public transit but actually
+            # does not
+            if not (set(modes).isdisjoint(set(pt_modes))):
+                # Claim using public transit
+                real_switch_types = [sp['properties']['type'] for sp in r['switch_points']]
+                pt_switch_types = ['suburban_station',
+                                   'underground_station',
+                                   'tram_station',
+                                   'bus_station']
+                if set(real_switch_types).isdisjoint(set(pt_switch_types)):
+                    # It claims using public transit but no public transit station
+                    # is found in the result path. Such a path will be eliminated.
+                    continue
+            refined_results.append(r)
+        results['routes'] = refined_results
         return results
 
     def find_path(self, plan):
