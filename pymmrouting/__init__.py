@@ -2,7 +2,7 @@
 #           'switchcondition', 'datamodel']
 
 __title__ = 'pymmrouting'
-__version__ = '0.3.3'
+__version__ = '0.4.0'
 __author__ = 'LIU Lu'
 __contact__ = 'nudtlliu@gmail.com'
 __license__ = 'MIT'
