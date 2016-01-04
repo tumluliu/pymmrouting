@@ -223,9 +223,9 @@ class MultimodalRoutePlanner(object):
             result.length = c_mmspa_lib.GetFinalCost(
                 c_longlong(plan.target['properties']['id']), 'distance')
             result.time = c_mmspa_lib.GetFinalCost(
-                c_longlong(plan.target['properties']['id']), 'elapsed_time')
+                c_longlong(plan.target['properties']['id']), 'duration')
             result.walking_length = c_mmspa_lib.GetFinalCost(
                 c_longlong(plan.target['properties']['id']), 'walking_distance')
             result.walking_time = c_mmspa_lib.GetFinalCost(
-                c_longlong(plan.target['properties']['id']), 'walking_time')
+                c_longlong(plan.target['properties']['id']), 'walking_duration')
         return result
