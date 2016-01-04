@@ -35,27 +35,71 @@ class MultimodalRoutePlanner(object):
     def __init__(self, datasource_type='POSTGRESQL'):
         # For strict type checking, the arguments and returning types are
         # explictly listed here
-        # TODO: mapping c_mmspa_lib interface function to python-style methods
-        self.connect_db = c_mmspa_lib.ConnectDB
-        c_mmspa_lib.ConnectDB.argtypes = [c_char_p]
-        c_mmspa_lib.ConnectDB.restype = c_int
-        c_mmspa_lib.CreateRoutingPlan.argtypes = [c_int, c_int]
-        c_mmspa_lib.SetModeListItem.argtypes = [c_int, c_int]
-        c_mmspa_lib.SetSwitchConditionListItem.argtypes = [c_int, c_char_p]
+
+        # v2 of mmspa library API
+
+        # Function of initializing the library,preparing and caching mode
+        # graph data
+        # extern int MSPinit(const char *pgConnStr);
+        self.msp_init = c_mmspa_lib.MSPinit
+        self.msp_init.argtypes = [c_char_p]
+        self.msp_init.restype = c_int
+        # Functions of creating multimodal routing plan
+        # extern void MSPcreateRoutingPlan(int modeCount, int publicModeCount);
+        self.msp_createroutingplan = c_mmspa_lib.MSPcreateRoutingPlan
+        self.msp_createroutingplan.argtypes = [c_int, c_int]
+        # extern void MSPsetMode(int index, int modeId);
+        self.msp_setmode = c_mmspa_lib.MSPsetMode
+        self.msp_setmode.argtypes = [c_int, c_int]
+        # extern void MSPsetPublicTransit(int index, int modeId);
+        self.msp_setpublictransit = c_mmspa_lib.MSPsetPublicTransit
+        self.msp_setpublictransit.argtypes = [c_int, c_int]
+        # extern void MSPsetSwitchCondition(int index, const char *spCondition);
+        self.msp_setswitchcondition = c_mmspa_lib.MSPsetSwitchCondition
+        self.msp_setswitchcondition.argtypes = [c_int, c_char_p]
+        # extern void MSPsetSwitchConstraint(int index, VertexValidationChecker callback);
         # FIXME: the arg type of SetSwitchingConstraint should be
         # VertexValidationChecker callback
-        c_mmspa_lib.SetSwitchingConstraint.argtypes = [c_int, c_void_p]
-        c_mmspa_lib.SetPublicTransitModeSetItem.argtypes = [c_int, c_int]
+        self.msp_setswitchconstraint = c_mmspa_lib.MSPsetSwitchConstraint
+        self.msp_setswitchconstraint.argtypes = [c_int, c_void_p]
+        # extern void MSPsetTargetConstraint(VertexValidationChecker callback);
         # FIXME: the argtype here should be VertexValidationChecker callback
-        c_mmspa_lib.SetTargetConstraint.argtypes = [c_void_p]
-        c_mmspa_lib.SetCostFactor.argtypes = [c_char_p]
-        c_mmspa_lib.Parse.restype = c_int
-        c_mmspa_lib.MultimodalTwoQ.argtypes = [c_longlong]
-        c_mmspa_lib.GetFinalPath.argtypes = [c_longlong, c_longlong]
-        c_mmspa_lib.GetFinalPath.restype = POINTER(RawMultimodalPath)
-        c_mmspa_lib.GetFinalCost.argtypes = [c_longlong, c_char_p]
-        c_mmspa_lib.GetFinalCost.restype = c_double
-        c_mmspa_lib.DisposePaths.argtypes = [POINTER(RawMultimodalPath)]
+        self.msp_settargetconstraint = c_mmspa_lib.MSPsetTargetConstraint
+        self.msp_settargetconstraint.argtypes = [c_void_p]
+        # extern void MSPsetCostFactor(const char *costFactor);
+        self.msp_setcostfactor = c_mmspa_lib.MSPsetCostFactor
+        self.msp_setcostfactor.argtypes = [c_char_p]
+        # Function of assembling multimodal graph set for each routing plan
+        # extern int MSPassembleGraphs();
+        self.msp_assemblegraphs = c_mmspa_lib.MSPassembleGraphs
+        self.msp_assemblegraphs.restype = c_int
+        # Functions of finding multimodal shortest paths
+        # extern Path **MSPfindPath(int64_t source, int64_t target);
+        self.msp_findpath = c_mmspa_lib.MSPfindPath
+        self.msp_findpath.argtypes = [c_longlong, c_longlong]
+        self.msp_findpath.restype = POINTER(RawMultimodalPath)
+        # extern void MSPtwoq(int64_t source);
+        self.msp_twoq = c_mmspa_lib.MSPtwoq
+        self.msp_twoq.argtypes = [c_longlong]
+        # Functions of fetching and releasing the path planning results
+        # extern Path **MSPgetFinalPath(int64_t source, int64_t target);
+        self.msp_getfinalpath = c_mmspa_lib.MSPgetFinalPath
+        self.msp_getfinalpath.argtypes = [c_longlong, c_longlong]
+        self.msp_getfinalpath.restype = POINTER(RawMultimodalPath)
+        # extern double MSPgetFinalCost(int64_t target, const char *costField);
+        self.msp_getfinalcost = c_mmspa_lib.MSPgetFinalCost
+        self.msp_getfinalcost.argtypes = [c_longlong, c_char_p]
+        self.msp_getfinalcost.restype = c_double
+        # extern void MSPclearPaths(Path **paths);
+        self.msp_clearpaths = c_mmspa_lib.MSPclearPaths
+        self.msp_clearpaths.argtypes = [POINTER(RawMultimodalPath)]
+        # Function of disposing the library memory
+        # extern void MSPclearGraphs();
+        self.msp_cleargraphs = c_mmspa_lib.MSPclearGraphs
+        # extern void MSPclearRoutingPlan();
+        self.msp_clearroutingplan = c_mmspa_lib.MSPclearRoutingPlan
+        # extern void MSPfinalize();
+        self.msp_finalize = c_mmspa_lib.MSPfinalize
         pg_conn_str = \
             "host = '" + PGBOUNCER_CONF['host'] + "' " + \
             "user = '" + PGBOUNCER_CONF['username'] + "' " + \
@@ -73,21 +117,23 @@ class MultimodalRoutePlanner(object):
     def open_datasource(self, ds_type, ds_url):
         self.data_source_type = ds_type.upper()
         if ds_type.upper() in ["POSTGRESQL", "POSTGRES"]:
-            ret_code = c_mmspa_lib.ConnectDB(ds_url)
-            if ret_code != 0: raise Exception("[FATAL] Open datasource failed")
+            ret_code = self.msp_init(ds_url)
+            if ret_code != 0:
+                raise Exception(
+                    "[FATAL] Open datasource and caching mode graphs failed")
         elif ds_type.upper() == "PLAIN_TEXT":
             self.graph_file = open(ds_url)
             # FIXME: here should return a status code
 
     def cleanup(self):
         if self.data_source_type in ["POSTGRESQL", "POSTGRES"]:
-            c_mmspa_lib.DisconnectDB()
+            self.msp_finalize()
         elif self.data_source_type == "PLAIN_TEXT":
             self.graph_file.close()
 
-    def assemble_networks(self, plan):
+    def prepare_routingplan(self, plan):
         logger.info("Create a routing plan. ")
-        c_mmspa_lib.CreateRoutingPlan(
+        self.msp_createroutingplan(
             len(plan.mode_list), len(plan.public_transit_set))
         # set mode list
 
@@ -95,41 +141,39 @@ class MultimodalRoutePlanner(object):
         logger.debug("Mode list is: %s", plan.mode_list)
         i = 0
         for mode in plan.mode_list:
-            c_mmspa_lib.SetModeListItem(i, mode)
+            self.msp_setmode(i, mode)
             i += 1
 
         # set switch conditions and constraints if the plan is multimodal
         if len(plan.mode_list) > 1:
             logger.info("Set the switch conditions and constraints... ")
             for i in range(len(plan.mode_list) - 1):
-                c_mmspa_lib.SetSwitchConditionListItem(i,
-                    plan.switch_condition_list[i])
-                c_mmspa_lib.SetSwitchingConstraint(i,
-                    plan.switch_constraint_list[i])
+                self.msp_setswitchcondition(i, plan.switch_condition_list[i])
+                self.msp_setswitchconstraint(i, plan.switch_constraint_list[i])
 
         # set public transit modes if there are
         if plan.has_public_transit:
             i = 0
             for mode in plan.public_transit_set:
-                c_mmspa_lib.SetPublicTransitModeSetItem(i, mode)
+                self.msp_setpublictransit(i, mode)
                 i += 1
 
         logger.info("Set the target constraints if there is... ")
         logger.debug("Target constraints are: %s", plan.target_constraint)
-        c_mmspa_lib.SetTargetConstraint(plan.target_constraint)
+        self.msp_settargetconstraint(plan.target_constraint)
         logger.info("Set the const factor ... ")
         logger.debug("Cost factor is: %s", plan.cost_factor)
-        c_mmspa_lib.SetCostFactor(plan.cost_factor)
+        self.msp_setcostfactor(plan.cost_factor)
 
-        logger.info("Start parsing multimodal networks...")
-        if c_mmspa_lib.Parse() != 0:
-            raise Exception("Assembling multimodal networks failed!")
+        # logger.info("Start parsing multimodal networks...")
+        # if self.msp_assemblegraphs() != 0:
+            # raise Exception("Assembling multimodal networks failed!")
 
     def disassemble_networks(self):
-        c_mmspa_lib.Dispose()
+        self.msp_cleargraphs()
 
     def batch_find_path(self, plans):
-        result_dict = { "routes": []}
+        result_dict = {"routes": []}
         for p in plans:
             result = self.find_path(p)
             result_dict["routes"] += result["routes"]
@@ -140,7 +184,7 @@ class MultimodalRoutePlanner(object):
     def _refine_results(self, results, plans):
         refined_results = []
         for i, r in enumerate(results['routes']):
-            if r['existence'] == False:
+            if r['existence'] is False:
                 continue
             if MODES['public_transportation'] in plans[i].mode_list:
                 # Claim using public transit
@@ -148,11 +192,12 @@ class MultimodalRoutePlanner(object):
                               for f in r['geojson']['features']
                               if f['properties']['type'] == 'path']
                 pt_modes = ['suburban', 'underground', 'tram', 'bus']
-                # Eliminate the result claiming using public transit but actually
-                # does not
+                # Eliminate the result claiming using public transit but
+                # actually does not
                 if (set(real_modes).isdisjoint(set(pt_modes))):
-                    # It claims using public transit but no public transit station
-                    # is found in the result path. Such a path will be eliminated.
+                    # It claims using public transit but no public transit
+                    # station is found in the result path. Such a path will
+                    # be eliminated.
                     continue
             refined_results.append(r)
         refined_results.sort(key=itemgetter('duration'))
@@ -163,23 +208,24 @@ class MultimodalRoutePlanner(object):
         logger.info("Start path finding...")
         logger.debug("source: %s", str(plan.source))
         logger.debug("target: %s", str(plan.target))
-        logger.info("Loading multimodal transportation networks ... ")
-        t1 = time.time()
-        self.assemble_networks(plan)
-        t2 = time.time()
-        logger.info("done!")
-        logger.info("Finish assembling multimodal networks, time consumed: %s seconds", (t2 - t1))
+        # logger.info("Loading multimodal transportation networks ... ")
+        # t1 = time.time()
+        self.prepare_routingplan(plan)
+        # t2 = time.time()
+        # logger.info("done!")
+        # logger.info("Finish assembling multimodal networks, time consumed: %s seconds", (t2 - t1))
         logger.info("Calculating multimodal paths ... ")
         t1 = time.time()
-        c_mmspa_lib.MultimodalTwoQ(c_longlong(plan.source['properties']['id']))
+        # self.msp_twoq(c_longlong(plan.source['properties']['id']))
+        final_path = self.msp_findpath(c_longlong(plan.source['properties']['id']),
+                                       c_longlong(plan.target['properties']['id']))
         t2 = time.time()
         logger.info("Finish calculating multimodal paths, time consumed: %s seconds", (t2 - t1))
-        final_path = c_mmspa_lib.GetFinalPath(c_longlong(plan.source['properties']['id']),
-                                              c_longlong(plan.target['properties']['id']))
         routing_result = self._construct_result(plan, final_path)
         if routing_result.is_existent is True:
-            c_mmspa_lib.DisposePaths(final_path)
+            self.msp_clearpaths(final_path)
         self.disassemble_networks()
+        self.msp_clearroutingplan()
         del plan.source['properties']['id']
         del plan.target['properties']['id']
         return {
@@ -207,8 +253,7 @@ class MultimodalRoutePlanner(object):
                 mp = ModePath(m)
                 logger.debug("Mode path vertex id list before construction: %s",
                              mp.vertex_id_list)
-                for i in range(
-                    final_path[m_index].path_segments[0].vertex_list_length):
+                for i in range(final_path[m_index].path_segments[0].vertex_list_length):
                     v = final_path[m_index].path_segments[0].vertex_list[i]
                     mp.vertex_id_list.append(v)
                 m_index += 1
@@ -220,12 +265,12 @@ class MultimodalRoutePlanner(object):
             result.unfold_sub_paths()
             logger.debug("vertex id list after unfolding: %s",
                          result.path_by_vertices)
-            result.length = c_mmspa_lib.GetFinalCost(
+            result.length = self.msp_getfinalcost(
                 c_longlong(plan.target['properties']['id']), 'distance')
-            result.time = c_mmspa_lib.GetFinalCost(
-                c_longlong(plan.target['properties']['id']), 'elapsed_time')
-            result.walking_length = c_mmspa_lib.GetFinalCost(
+            result.time = self.msp_getfinalcost(
+                c_longlong(plan.target['properties']['id']), 'duration')
+            result.walking_length = self.msp_getfinalcost(
                 c_longlong(plan.target['properties']['id']), 'walking_distance')
-            result.walking_time = c_mmspa_lib.GetFinalCost(
-                c_longlong(plan.target['properties']['id']), 'walking_time')
+            result.walking_time = self.msp_getfinalcost(
+                c_longlong(plan.target['properties']['id']), 'walking_duration')
         return result
