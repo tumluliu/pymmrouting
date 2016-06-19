@@ -14,47 +14,51 @@ INTERNAL_SRID = 4326
 # Read modes and switch_types from database instead of hard coding it here
 MODES = {
     str(m_name): m_id
-    for m_name, m_id in
-    Session.query(Mode.mode_name, Mode.mode_id)
+    for m_name, m_id in Session.query(Mode.mode_name, Mode.mode_id)
 }
 SWITCH_TYPES = {
     str(t_name): t_id
-    for t_name, t_id in
-    Session.query(SwitchType.type_name, SwitchType.type_id)
+    for t_name, t_id in Session.query(SwitchType.type_name, SwitchType.type_id)
 }
 
 
 class RoutingPlan(object):
-
     """
     A plan of routing including transportation tools to use
     during the trip
     """
-    mode_list              = []
-    switch_type_list       = []
-    switch_condition_list  = []
+    mode_list = []
+    switch_type_list = []
+    switch_condition_list = []
     switch_constraint_list = []
-    target_constraint      = None
-    public_transit_set     = []
-    cost_factor            = ''
-    description            = ''
-    source                 = {}
-    target                 = {}
+    target_constraint = None
+    public_transit_set = []
+    cost_factor = ''
+    description = ''
+    source = {}
+    target = {}
 
-    def __init__(self, desc, source, target, modes, cost,
-                 switch_types=None, switch_conditions=None,
-                 switch_constraints=None, target_constraint=None,
+    def __init__(self,
+                 desc,
+                 source,
+                 target,
+                 modes,
+                 cost,
+                 switch_types=None,
+                 switch_conditions=None,
+                 switch_constraints=None,
+                 target_constraint=None,
                  public_transits=None):
-        self.description            = desc
-        self.source                 = source
-        self.target                 = target
-        self.mode_list              = modes
-        self.cost_factor            = cost
-        self.switch_type_list       = [] if switch_types is None else switch_types
-        self.switch_condition_list  = [] if switch_conditions is None else switch_conditions
+        self.description = desc
+        self.source = source
+        self.target = target
+        self.mode_list = modes
+        self.cost_factor = cost
+        self.switch_type_list = [] if switch_types is None else switch_types
+        self.switch_condition_list = [] if switch_conditions is None else switch_conditions
         self.switch_constraint_list = [] if switch_constraints is None else switch_constraints
-        self.target_constraint      = target_constraint
-        self.public_transit_set     = [] if public_transits is None else public_transits
+        self.target_constraint = target_constraint
+        self.public_transit_set = [] if public_transits is None else public_transits
 
     @property
     def is_multimodal(self):
@@ -68,7 +72,6 @@ class RoutingPlan(object):
 
 
 class RoutingPlanInferer(object):
-
     """
     Infer the feasible routing plans according to routing options
     """
@@ -95,10 +98,9 @@ class RoutingPlanInferer(object):
 
     def _get_lon_lat_position(self, position_info):
         if position_info['type'] == 'coordinate':
-            lon, lat = self._reproject(position_info['value']['x'],
-                                       position_info['value']['y'],
-                                       position_info['value']['srid'],
-                                       INTERNAL_SRID)
+            lon, lat = self._reproject(
+                position_info['value']['x'], position_info['value']['y'],
+                position_info['value']['srid'], INTERNAL_SRID)
         elif position_info['type'] == 'address':
             # TODO: Do geo-decoding to get the geo-coordinate
             lon, lat = self._geodecode(position_info['value'])
@@ -110,7 +112,8 @@ class RoutingPlanInferer(object):
         nearest_neighbor = Session.query(StreetJunction).order_by(
             StreetJunction.geom.distance_box(point)).first()
         raw_point_id = nearest_neighbor.osm_id
-        point_geom = json.loads(Session.scalar(st_asgeojson(nearest_neighbor.geom)))
+        point_geom = json.loads(Session.scalar(st_asgeojson(
+            nearest_neighbor.geom)))
         logger.debug("found nearest neighbor, osm_id is " + str(raw_point_id))
         return {'point_id': raw_point_id, 'geometry': point_geom}
 
@@ -126,7 +129,10 @@ class RoutingPlanInferer(object):
         elif objective == 'fastest': return 'speed'
         return 'speed'
 
-    def _find_valid_source_target_pairs(self, sources, targets, modes,
+    def _find_valid_source_target_pairs(self,
+                                        sources,
+                                        targets,
+                                        modes,
                                         public_transit_modes=[]):
         s_mode = modes[0]
         t_mode = modes[-1]
@@ -175,10 +181,10 @@ class RoutingPlanInferer(object):
         target_lon_lat = self._get_lon_lat_position(self.options['target'])
         nearest_source = self._find_nearest_point(source_lon_lat)
         nearest_target = self._find_nearest_point(target_lon_lat)
-        candidate_sources = self._find_candidate_vertices(
-            nearest_source['point_id'])
-        candidate_targets = self._find_candidate_vertices(
-            nearest_target['point_id'])
+        candidate_sources = self._find_candidate_vertices(nearest_source[
+            'point_id'])
+        candidate_targets = self._find_candidate_vertices(nearest_target[
+            'point_id'])
         cost_factor = self._get_cost_factor(self.options['objective'])
         plans = []
         if self.options['objective'] == 'fastest':
@@ -191,14 +197,16 @@ class RoutingPlanInferer(object):
                         routing_src = {
                             'type': 'Feature',
                             'geometry': nearest_source['geometry'],
-                            'properties': {'id': st['source']}}
+                            'properties': {'id': st['source']}
+                        }
                         routing_tgt = {
                             'type': 'Feature',
                             'geometry': nearest_target['geometry'],
-                            'properties': {'id': st['target']}}
-                        plans.append(RoutingPlan(
-                            'Walking', routing_src, routing_tgt,
-                            [MODES['foot']], cost_factor))
+                            'properties': {'id': st['target']}
+                        }
+                        plans.append(RoutingPlan('Walking', routing_src,
+                                                 routing_tgt, [MODES['foot']],
+                                                 cost_factor))
                     return plans
                 if self.options['has_private_car'] and \
                         (not self.options['need_parking']):
@@ -208,24 +216,25 @@ class RoutingPlanInferer(object):
                     # car; foot; car-foot with geo_connection as Switch Point
                     # 1st: car only
                     st_pairs = self._find_valid_source_target_pairs(
-                        candidate_sources, candidate_targets, [MODES['private_car']])
+                        candidate_sources, candidate_targets,
+                        [MODES['private_car']])
                     for st in st_pairs:
                         routing_src = {
                             'type': 'Feature',
                             'geometry': nearest_source['geometry'],
-                            'properties': {'id': st['source']}}
+                            'properties': {'id': st['source']}
+                        }
                         routing_tgt = {
                             'type': 'Feature',
                             'geometry': nearest_target['geometry'],
-                            'properties': {'id': st['target']}}
+                            'properties': {'id': st['target']}
+                        }
                         car_plan = RoutingPlan(
                             'Take a car', routing_src, routing_tgt,
                             [MODES['private_car']], cost_factor)
                         if 'driving_distance_limit' in self.options:
                             car_plan.target_constraint = VERTEX_VALIDATION_CHECKER(
-                                    lambda v: 0 if v[0].distance <= float(
-                                        self.options['driving_distance_limit']) *
-                                    1000.0 else -1)
+                                lambda v: 0 if v[0].distance <= float(self.options['driving_distance_limit']) * 1000.0 else -1)
                         plans.append(car_plan)
                     # 2nd: foot only
                     st_pairs = self._find_valid_source_target_pairs(
@@ -234,14 +243,16 @@ class RoutingPlanInferer(object):
                         routing_src = {
                             'type': 'Feature',
                             'geometry': nearest_source['geometry'],
-                            'properties': {'id': st['source']}}
+                            'properties': {'id': st['source']}
+                        }
                         routing_tgt = {
                             'type': 'Feature',
                             'geometry': nearest_target['geometry'],
-                            'properties': {'id': st['target']}}
-                        plans.append(RoutingPlan(
-                            'Walking', routing_src, routing_tgt,
-                            [MODES['foot']], cost_factor))
+                            'properties': {'id': st['target']}
+                        }
+                        plans.append(RoutingPlan('Walking', routing_src,
+                                                 routing_tgt, [MODES['foot']],
+                                                 cost_factor))
                     # 3rd: car-foot with geo_connection as Switch Point
                     type_id = SWITCH_TYPES['geo_connection']
                     st_pairs = self._find_valid_source_target_pairs(
@@ -251,17 +262,19 @@ class RoutingPlanInferer(object):
                         routing_src = {
                             'type': 'Feature',
                             'geometry': nearest_source['geometry'],
-                            'properties': {'id': st['source']}}
+                            'properties': {'id': st['source']}
+                        }
                         routing_tgt = {
                             'type': 'Feature',
                             'geometry': nearest_target['geometry'],
-                            'properties': {'id': st['target']}}
+                            'properties': {'id': st['target']}
+                        }
                         car_foot_plan = RoutingPlan(
                             'By car first, then walking without parking',
                             routing_src, routing_tgt,
-                            [MODES['private_car'], MODES['foot']],
-                            cost_factor, [type_id],
-                            ["type_id=" + str(type_id) + " AND is_available=true"])
+                            [MODES['private_car'], MODES['foot']], cost_factor,
+                            [type_id], ["type_id=" + str(type_id) +
+                                        " AND is_available=true"])
                         # FIXME: It is unreasonable to use driving distance limit
                         # as the extream driving distance because the driver can
                         # not drive any more after the passenger leaves. So it
@@ -270,15 +283,15 @@ class RoutingPlanInferer(object):
                         if 'driving_distance_limit' in self.options:
                             car_foot_plan.switch_constraint_list = [
                                 VERTEX_VALIDATION_CHECKER(
-                                    lambda v: 0 if v[0].distance <= float(
-                                        self.options['driving_distance_limit']) *
-                                    1000.0 else -1)]
+                                    lambda v: 0 if v[0].distance <= float(self.options['driving_distance_limit']) * 1000.0 else -1)
+                            ]
                         else:
                             car_foot_plan.switch_constraint_list = [None]
                         plans.append(car_foot_plan)
                     return plans
 
-                if self.options['has_private_car'] and self.options['need_parking']:
+                if self.options['has_private_car'] and self.options[
+                        'need_parking']:
                     # the user may be the driver
                     # and he/she surely need a parking lot for the car
                     # There are also 2 possible mode combinations in this case:
@@ -286,19 +299,22 @@ class RoutingPlanInferer(object):
                     # 1st: foot only
                     st_pairs = self._find_valid_source_target_pairs(
                         candidate_sources, candidate_targets, [MODES['foot']])
-                    logger.debug("Found valid source target pairs: %s", st_pairs)
+                    logger.debug("Found valid source target pairs: %s",
+                                 st_pairs)
                     for st in st_pairs:
                         routing_src = {
                             'type': 'Feature',
                             'geometry': nearest_source['geometry'],
-                            'properties': {'id': st['source']}}
+                            'properties': {'id': st['source']}
+                        }
                         routing_tgt = {
                             'type': 'Feature',
                             'geometry': nearest_target['geometry'],
-                            'properties': {'id': st['target']}}
-                        plans.append(RoutingPlan(
-                            'Walking', routing_src, routing_tgt,
-                            [MODES['foot']], cost_factor))
+                            'properties': {'id': st['target']}
+                        }
+                        plans.append(RoutingPlan('Walking', routing_src,
+                                                 routing_tgt, [MODES['foot']],
+                                                 cost_factor))
                     # 2nd: car-foot with parking lots as Switch Point
                     type_id = SWITCH_TYPES['car_parking']
                     st_pairs = self._find_valid_source_target_pairs(
@@ -308,24 +324,24 @@ class RoutingPlanInferer(object):
                         routing_src = {
                             'type': 'Feature',
                             'geometry': nearest_source['geometry'],
-                            'properties': {'id': st['source']}}
+                            'properties': {'id': st['source']}
+                        }
                         routing_tgt = {
                             'type': 'Feature',
                             'geometry': nearest_target['geometry'],
-                            'properties': {'id': st['target']}}
+                            'properties': {'id': st['target']}
+                        }
                         car_foot_plan = RoutingPlan(
-                            'Driving, parking and walking',
-                            routing_src, routing_tgt,
-                            [MODES['private_car'], MODES['foot']],
-                            cost_factor, [type_id],
-                            ["type_id=" + str(type_id) + " AND is_available=true"])
+                            'Driving, parking and walking', routing_src,
+                            routing_tgt, [MODES['private_car'], MODES['foot']],
+                            cost_factor, [type_id], ["type_id=" + str(
+                                type_id) + " AND is_available=true"])
                         remaining_gas_factor = 0.5
                         if 'driving_distance_limit' in self.options:
                             car_foot_plan.switch_constraint_list = [
                                 VERTEX_VALIDATION_CHECKER(
-                                    lambda v: 0 if v[0].distance <= float(
-                                        self.options['driving_distance_limit']) *
-                                    1000.0 * remaining_gas_factor else -1)]
+                                    lambda v: 0 if v[0].distance <= float(self.options['driving_distance_limit']) * 1000.0 * remaining_gas_factor else -1)
+                            ]
                         else:
                             car_foot_plan.switch_constraint_list = [None]
                         plans.append(car_foot_plan)
@@ -345,14 +361,16 @@ class RoutingPlanInferer(object):
                         routing_src = {
                             'type': 'Feature',
                             'geometry': nearest_source['geometry'],
-                            'properties': {'id': st['source']}}
+                            'properties': {'id': st['source']}
+                        }
                         routing_tgt = {
                             'type': 'Feature',
                             'geometry': nearest_target['geometry'],
-                            'properties': {'id': st['target']}}
-                        plans.append(RoutingPlan(
-                            'Walking', routing_src, routing_tgt,
-                            [MODES['foot']], cost_factor))
+                            'properties': {'id': st['target']}
+                        }
+                        plans.append(RoutingPlan('Walking', routing_src,
+                                                 routing_tgt, [MODES['foot']],
+                                                 cost_factor))
                     # 2: public transportation
                     public_modes = [MODES[m] for m in \
                                     self.options['available_public_modes']]
@@ -363,15 +381,17 @@ class RoutingPlanInferer(object):
                         routing_src = {
                             'type': 'Feature',
                             'geometry': nearest_source['geometry'],
-                            'properties': {'id': st['source']}}
+                            'properties': {'id': st['source']}
+                        }
                         routing_tgt = {
                             'type': 'Feature',
                             'geometry': nearest_target['geometry'],
-                            'properties': {'id': st['target']}}
+                            'properties': {'id': st['target']}
+                        }
                         public_plan = RoutingPlan(
-                            'Walking and taking public transit',
-                            routing_src, routing_tgt,
-                            [MODES['public_transportation']], cost_factor)
+                            'Walking and taking public transit', routing_src,
+                            routing_tgt, [MODES['public_transportation']],
+                            cost_factor)
                         public_plan.public_transit_set = public_modes
                         plans.append(public_plan)
                     return plans
@@ -390,24 +410,25 @@ class RoutingPlanInferer(object):
                 #
                 # 1: car only
                 st_pairs = self._find_valid_source_target_pairs(
-                    candidate_sources, candidate_targets, [MODES['private_car']])
+                    candidate_sources, candidate_targets,
+                    [MODES['private_car']])
                 for st in st_pairs:
                     routing_src = {
                         'type': 'Feature',
                         'geometry': nearest_source['geometry'],
-                        'properties': {'id': st['source']}}
+                        'properties': {'id': st['source']}
+                    }
                     routing_tgt = {
                         'type': 'Feature',
                         'geometry': nearest_target['geometry'],
-                        'properties': {'id': st['target']}}
-                    car_plan = RoutingPlan(
-                        'Take a car', routing_src, routing_tgt,
-                        [MODES['private_car']], cost_factor)
+                        'properties': {'id': st['target']}
+                    }
+                    car_plan = RoutingPlan('Take a car', routing_src,
+                                           routing_tgt, [MODES['private_car']],
+                                           cost_factor)
                     if 'driving_distance_limit' in self.options:
                         car_plan.target_constraint = VERTEX_VALIDATION_CHECKER(
-                                lambda v: 0 if v[0].distance <= float(
-                                    self.options['driving_distance_limit']) *
-                                1000.0 else -1)
+                            lambda v: 0 if v[0].distance <= float(self.options['driving_distance_limit']) * 1000.0 else -1)
                     plans.append(car_plan)
                 # 2: foot only
                 st_pairs = self._find_valid_source_target_pairs(
@@ -416,14 +437,16 @@ class RoutingPlanInferer(object):
                     routing_src = {
                         'type': 'Feature',
                         'geometry': nearest_source['geometry'],
-                        'properties': {'id': st['source']}}
+                        'properties': {'id': st['source']}
+                    }
                     routing_tgt = {
                         'type': 'Feature',
                         'geometry': nearest_target['geometry'],
-                        'properties': {'id': st['target']}}
-                    plans.append(RoutingPlan(
-                        'Walking', routing_src, routing_tgt,
-                        [MODES['foot']], cost_factor))
+                        'properties': {'id': st['target']}
+                    }
+                    plans.append(RoutingPlan('Walking', routing_src,
+                                             routing_tgt, [MODES['foot']],
+                                             cost_factor))
                 # 3: car-foot with geo_connection as Switch Point
                 type_id = SWITCH_TYPES['geo_connection']
                 st_pairs = self._find_valid_source_target_pairs(
@@ -433,23 +456,24 @@ class RoutingPlanInferer(object):
                     routing_src = {
                         'type': 'Feature',
                         'geometry': nearest_source['geometry'],
-                        'properties': {'id': st['source']}}
+                        'properties': {'id': st['source']}
+                    }
                     routing_tgt = {
                         'type': 'Feature',
                         'geometry': nearest_target['geometry'],
-                        'properties': {'id': st['target']}}
+                        'properties': {'id': st['target']}
+                    }
                     car_foot_plan = RoutingPlan(
                         'By car first, then walking without parking',
                         routing_src, routing_tgt,
-                        [MODES['private_car'], MODES['foot']],
-                        cost_factor, [type_id],
+                        [MODES['private_car'], MODES['foot']], cost_factor,
+                        [type_id],
                         ["type_id=" + str(type_id) + " AND is_available=true"])
                     if 'driving_distance_limit' in self.options:
                         car_foot_plan.switch_constraint_list = [
                             VERTEX_VALIDATION_CHECKER(
-                                lambda v: 0 if v[0].distance <= float(
-                                    self.options['driving_distance_limit']) *
-                                1000.0 else -1)]
+                                lambda v: 0 if v[0].distance <= float(self.options['driving_distance_limit']) * 1000.0 else -1)
+                        ]
                     else:
                         car_foot_plan.switch_constraint_list = [None]
                     plans.append(car_foot_plan)
@@ -463,15 +487,17 @@ class RoutingPlanInferer(object):
                     routing_src = {
                         'type': 'Feature',
                         'geometry': nearest_source['geometry'],
-                        'properties': {'id': st['source']}}
+                        'properties': {'id': st['source']}
+                    }
                     routing_tgt = {
                         'type': 'Feature',
                         'geometry': nearest_target['geometry'],
-                        'properties': {'id': st['target']}}
+                        'properties': {'id': st['target']}
+                    }
                     public_plan = RoutingPlan(
-                        'Walking and taking public transit',
-                        routing_src, routing_tgt,
-                        [MODES['public_transportation']], cost_factor)
+                        'Walking and taking public transit', routing_src,
+                        routing_tgt, [MODES['public_transportation']],
+                        cost_factor)
                     public_plan.public_transit_set = public_modes
                     plans.append(public_plan)
                 # 5: car-PT with geo_connection as Switch Point
@@ -486,14 +512,16 @@ class RoutingPlanInferer(object):
                     routing_src = {
                         'type': 'Feature',
                         'geometry': nearest_source['geometry'],
-                        'properties': {'id': st['source']}}
+                        'properties': {'id': st['source']}
+                    }
                     routing_tgt = {
                         'type': 'Feature',
                         'geometry': nearest_target['geometry'],
-                        'properties': {'id': st['target']}}
+                        'properties': {'id': st['target']}
+                    }
                     car_public_plan1 = RoutingPlan(
-                        'Driving and taking public transit',
-                        routing_src, routing_tgt,
+                        'Driving and taking public transit', routing_src,
+                        routing_tgt,
                         [MODES['private_car'], MODES['public_transportation']],
                         cost_factor, [type_id],
                         ["type_id=" + str(type_id) + " AND is_available=true"])
@@ -501,9 +529,8 @@ class RoutingPlanInferer(object):
                     if 'driving_distance_limit' in self.options:
                         car_public_plan1.switch_constraint_list = [
                             VERTEX_VALIDATION_CHECKER(
-                                lambda v: 0 if v[0].distance <= float(
-                                    self.options['driving_distance_limit']) *
-                                1000.0 else -1)]
+                                lambda v: 0 if v[0].distance <= float(self.options['driving_distance_limit']) * 1000.0 else -1)
+                        ]
                     else:
                         car_public_plan1.switch_constraint_list = [None]
                     plans.append(car_public_plan1)
@@ -519,11 +546,13 @@ class RoutingPlanInferer(object):
                     routing_src = {
                         'type': 'Feature',
                         'geometry': nearest_source['geometry'],
-                        'properties': {'id': st['source']}}
+                        'properties': {'id': st['source']}
+                    }
                     routing_tgt = {
                         'type': 'Feature',
                         'geometry': nearest_target['geometry'],
-                        'properties': {'id': st['target']}}
+                        'properties': {'id': st['target']}
+                    }
                     car_public_plan2 = RoutingPlan(
                         'Driving and taking public transit via Kiss+R',
                         routing_src, routing_tgt,
@@ -534,15 +563,15 @@ class RoutingPlanInferer(object):
                     if 'driving_distance_limit' in self.options:
                         car_public_plan2.switch_constraint_list = [
                             VERTEX_VALIDATION_CHECKER(
-                                lambda v: 0 if v[0].distance <= float(
-                                    self.options['driving_distance_limit']) *
-                                1000.0 else -1)]
+                                lambda v: 0 if v[0].distance <= float(self.options['driving_distance_limit']) * 1000.0 else -1)
+                        ]
                     else:
                         car_public_plan2.switch_constraint_list = [None]
                     plans.append(car_public_plan2)
                 return plans
 
-            if self.options['has_private_car'] and self.options['need_parking']:
+            if self.options['has_private_car'] and self.options[
+                    'need_parking']:
                 # the user may be the driver
                 # and he/she surely need a parking lot for the car
                 # There are 5 possible mode combinations in this case:
@@ -559,14 +588,16 @@ class RoutingPlanInferer(object):
                     routing_src = {
                         'type': 'Feature',
                         'geometry': nearest_source['geometry'],
-                        'properties': {'id': st['source']}}
+                        'properties': {'id': st['source']}
+                    }
                     routing_tgt = {
                         'type': 'Feature',
                         'geometry': nearest_target['geometry'],
-                        'properties': {'id': st['target']}}
-                    plans.append(RoutingPlan(
-                        'Walking', routing_src, routing_tgt,
-                        [MODES['foot']], cost_factor))
+                        'properties': {'id': st['target']}
+                    }
+                    plans.append(RoutingPlan('Walking', routing_src,
+                                             routing_tgt, [MODES['foot']],
+                                             cost_factor))
                 # 2: car-foot with parking lots as Switch Point
                 type_id = SWITCH_TYPES['car_parking']
                 st_pairs = self._find_valid_source_target_pairs(
@@ -576,24 +607,24 @@ class RoutingPlanInferer(object):
                     routing_src = {
                         'type': 'Feature',
                         'geometry': nearest_source['geometry'],
-                        'properties': {'id': st['source']}}
+                        'properties': {'id': st['source']}
+                    }
                     routing_tgt = {
                         'type': 'Feature',
                         'geometry': nearest_target['geometry'],
-                        'properties': {'id': st['target']}}
+                        'properties': {'id': st['target']}
+                    }
                     car_foot_plan = RoutingPlan(
-                        'Driving, parking and walking',
-                        routing_src, routing_tgt,
-                        [MODES['private_car'], MODES['foot']],
+                        'Driving, parking and walking', routing_src,
+                        routing_tgt, [MODES['private_car'], MODES['foot']],
                         cost_factor, [type_id],
                         ["type_id=" + str(type_id) + " AND is_available=true"])
                     remaining_gas_factor = 0.5
                     if 'driving_distance_limit' in self.options:
                         car_foot_plan.switch_constraint_list = [
                             VERTEX_VALIDATION_CHECKER(
-                                lambda v: 0 if v[0].distance <= float(
-                                    self.options['driving_distance_limit']) *
-                                1000.0 * remaining_gas_factor else -1)]
+                                lambda v: 0 if v[0].distance <= float(self.options['driving_distance_limit']) * 1000.0 * remaining_gas_factor else -1)
+                        ]
                     else:
                         car_foot_plan.switch_constraint_list = [None]
                     plans.append(car_foot_plan)
@@ -607,15 +638,17 @@ class RoutingPlanInferer(object):
                     routing_src = {
                         'type': 'Feature',
                         'geometry': nearest_source['geometry'],
-                        'properties': {'id': st['source']}}
+                        'properties': {'id': st['source']}
+                    }
                     routing_tgt = {
                         'type': 'Feature',
                         'geometry': nearest_target['geometry'],
-                        'properties': {'id': st['target']}}
+                        'properties': {'id': st['target']}
+                    }
                     public_plan = RoutingPlan(
-                        'Walking and taking public transit',
-                        routing_src, routing_tgt,
-                        [MODES['public_transportation']], cost_factor)
+                        'Walking and taking public transit', routing_src,
+                        routing_tgt, [MODES['public_transportation']],
+                        cost_factor)
                     public_plan.public_transit_set = public_modes
                     plans.append(public_plan)
                 # 4: car-PT with parking as Switch Point
@@ -630,11 +663,13 @@ class RoutingPlanInferer(object):
                     routing_src = {
                         'type': 'Feature',
                         'geometry': nearest_source['geometry'],
-                        'properties': {'id': st['source']}}
+                        'properties': {'id': st['source']}
+                    }
                     routing_tgt = {
                         'type': 'Feature',
                         'geometry': nearest_target['geometry'],
-                        'properties': {'id': st['target']}}
+                        'properties': {'id': st['target']}
+                    }
                     car_public_plan1 = RoutingPlan(
                         'Driving, parking and taking public transit',
                         routing_src, routing_tgt,
@@ -646,9 +681,8 @@ class RoutingPlanInferer(object):
                     if 'driving_distance_limit' in self.options:
                         car_public_plan1.switch_constraint_list = [
                             VERTEX_VALIDATION_CHECKER(
-                                lambda v: 0 if v[0].distance <= float(
-                                    self.options['driving_distance_limit']) *
-                                1000.0 * remaining_gas_factor else -1)]
+                                lambda v: 0 if v[0].distance <= float(self.options['driving_distance_limit']) * 1000.0 * remaining_gas_factor else -1)
+                        ]
                     else:
                         car_public_plan1.switch_constraint_list = [None]
                     plans.append(car_public_plan1)
@@ -664,11 +698,13 @@ class RoutingPlanInferer(object):
                     routing_src = {
                         'type': 'Feature',
                         'geometry': nearest_source['geometry'],
-                        'properties': {'id': st['source']}}
+                        'properties': {'id': st['source']}
+                    }
                     routing_tgt = {
                         'type': 'Feature',
                         'geometry': nearest_target['geometry'],
-                        'properties': {'id': st['target']}}
+                        'properties': {'id': st['target']}
+                    }
                     car_public_plan1 = RoutingPlan(
                         'Driving, parking and taking public transit',
                         routing_src, routing_tgt,
@@ -679,9 +715,8 @@ class RoutingPlanInferer(object):
                     if 'driving_distance_limit' in self.options:
                         car_public_plan1.switch_constraint_list = [
                             VERTEX_VALIDATION_CHECKER(
-                                lambda v: 0 if v[0].distance <= float(
-                                    self.options['driving_distance_limit']) *
-                                1000.0 else -1)]
+                                lambda v: 0 if v[0].distance <= float(self.options['driving_distance_limit']) * 1000.0 else -1)
+                        ]
                     else:
                         car_public_plan1.switch_constraint_list = [None]
                     plans.append(car_public_plan1)
@@ -692,56 +727,63 @@ class RoutingPlanInferer(object):
                     if not self.options['has_private_car']:
                         # no car, walk only
                         st_pairs = self._find_valid_source_target_pairs(
-                            candidate_sources, candidate_targets, [MODES['foot']])
+                            candidate_sources, candidate_targets,
+                            [MODES['foot']])
                         for st in st_pairs:
                             routing_src = {
                                 'type': 'Feature',
                                 'geometry': nearest_source['geometry'],
-                                'properties': {'id': st['source']}}
+                                'properties': {'id': st['source']}
+                            }
                             routing_tgt = {
                                 'type': 'Feature',
                                 'geometry': nearest_target['geometry'],
-                                'properties': {'id': st['target']}}
+                                'properties': {'id': st['target']}
+                            }
                             plans.append(RoutingPlan(
-                                'Walking', routing_src, routing_tgt,
-                                [MODES['foot']], cost_factor))
+                                'Walking', routing_src, routing_tgt, [MODES[
+                                    'foot']], cost_factor))
                     else:
                         # car
                         st_pairs = self._find_valid_source_target_pairs(
-                            candidate_sources, candidate_targets, [MODES['private_car']])
+                            candidate_sources, candidate_targets,
+                            [MODES['private_car']])
                         for st in st_pairs:
                             routing_src = {
                                 'type': 'Feature',
                                 'geometry': nearest_source['geometry'],
-                                'properties': {'id': st['source']}}
+                                'properties': {'id': st['source']}
+                            }
                             routing_tgt = {
                                 'type': 'Feature',
                                 'geometry': nearest_target['geometry'],
-                                'properties': {'id': st['target']}}
+                                'properties': {'id': st['target']}
+                            }
                             car_plan = RoutingPlan(
                                 'Take a car', routing_src, routing_tgt,
                                 [MODES['private_car']], cost_factor)
                             if 'driving_distance_limit' in self.options:
                                 car_plan.target_constraint = VERTEX_VALIDATION_CHECKER(
-                                        lambda v: 0 if v[0].distance <= float(
-                                            self.options['driving_distance_limit']) *
-                                        1000.0 else -1)
+                                    lambda v: 0 if v[0].distance <= float(self.options['driving_distance_limit']) * 1000.0 else -1)
                             plans.append(car_plan)
                         # foot
                         st_pairs = self._find_valid_source_target_pairs(
-                            candidate_sources, candidate_targets, [MODES['foot']])
+                            candidate_sources, candidate_targets,
+                            [MODES['foot']])
                         for st in st_pairs:
                             routing_src = {
                                 'type': 'Feature',
                                 'geometry': nearest_source['geometry'],
-                                'properties': {'id': st['source']}}
+                                'properties': {'id': st['source']}
+                            }
                             routing_tgt = {
                                 'type': 'Feature',
                                 'geometry': nearest_target['geometry'],
-                                'properties': {'id': st['target']}}
+                                'properties': {'id': st['target']}
+                            }
                             plans.append(RoutingPlan(
-                                'Walking', routing_src, routing_tgt,
-                                [MODES['foot']], cost_factor))
+                                'Walking', routing_src, routing_tgt, [MODES[
+                                    'foot']], cost_factor))
                         return plans
                 else:
                     # TODO: finish this branch

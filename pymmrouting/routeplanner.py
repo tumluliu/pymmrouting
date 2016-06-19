@@ -169,9 +169,6 @@ class MultimodalRoutePlanner(object):
         # if self.msp_assemblegraphs() != 0:
             # raise Exception("Assembling multimodal networks failed!")
 
-    def disassemble_networks(self):
-        self.msp_cleargraphs()
-
     def batch_find_path(self, plans):
         result_dict = {"routes": []}
         for p in plans:
@@ -224,7 +221,7 @@ class MultimodalRoutePlanner(object):
         routing_result = self._construct_result(plan, final_path)
         if routing_result.is_existent is True:
             self.msp_clearpaths(final_path)
-        self.disassemble_networks()
+        self.msp_cleargraphs()
         self.msp_clearroutingplan()
         del plan.source['properties']['id']
         del plan.target['properties']['id']
