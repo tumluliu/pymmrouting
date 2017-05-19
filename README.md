@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Python package of multimodal route planning based on [multimodal shortest path algorithms (mmspa)] (https://github.com/tumluliu/mmspa). The underlying path finding algorithms are described in detail in my doctor thesis [Data model and algorithms for multimodal route planning in transportation networks] (http://mediatum.ub.tum.de/node?id=1004678). So far, the multimodal transportation network it uses is stored in PostGIS. The database structure as well as the data can be prepared with [mmgraphdb-builder] (https://github.com/tumluliu/mmgraphdb-builder). The testbed data source is from OpenStreetMap and UnitedMaps. 
+Python package of multimodal route planning based on [multimodal shortest path algorithms (mmspa)](https://github.com/tumluliu/mmspa). The underlying path finding algorithms are described in detail in my doctor thesis [Data model and algorithms for multimodal route planning in transportation networks](http://mediatum.ub.tum.de/node?id=1004678). So far, the multimodal transportation network it uses is stored in PostGIS. The database structure as well as the data can be prepared with [mmgraphdb-builder](https://github.com/tumluliu/mmgraphdb-builder). The testbed data source is from OpenStreetMap and UnitedMaps. 
 
 It should be noted that the path-finding process is not lightning-fast since the hierarchical multimodal networks is not built yet. The timetable of public transits as well as traffic rules in motorized roads are not modeled either for the moment.
 
@@ -10,7 +10,7 @@ The detailed platform information of all the U-bahn stations in Munich is collec
 
 ## Usage
 
-Rename the `sample-config.json` to `config.json` and modify its content according to your environment. The `pgbouncer` section is the Postgresql connection pooling configuration for libmmspa4pg. So please install and config [pgbouncer] (https://pgbouncer.github.io) in advance on your system.
+Rename the `sample-config.json` to `config.json` and modify its content according to your environment. The `pgbouncer` section is the Postgresql connection pooling configuration for libmmspa4pg. So please install and config [pgbouncer](https://pgbouncer.github.io) in advance on your system.
 
 A sample code snippet of calculating multimodal paths:
 
@@ -39,9 +39,10 @@ python setup.py install
 ## Dependencies
 
 - pgbouncer
+- psycopg2
 - sqlalchemy
 - geoalchemy2
-- [mmspa] (https://github.com/tumluliu/mmspa)
+- [mmspa](https://github.com/tumluliu/mmspa)
 - \[termcolor\] if you run rundemo.py
 
 ## Tests
