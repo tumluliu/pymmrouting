@@ -66,4 +66,4 @@ nosetests --with-coverage --cover-html --cover-package=pymmrouting
 
 ## Acknowledgements
 
-Thanks for the support of National Natural Science Foundation of China (NSFC) project "Data model and algorithms in socially-enabled multimodal route planning service" (No. 41301431) of which I am the project leader.
+Thanks for the support of Technical University of Munich (NSFC) project "Data model and algorithms in socially-enabled multimodal route planning service" (No. 41301431) of which I am the project leader.
